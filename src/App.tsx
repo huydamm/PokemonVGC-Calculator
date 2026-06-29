@@ -9,19 +9,29 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
+import type { PokemonSet } from '@pkmn/sets';
 import { createPokemon, createMove, runCalc, makeField, type DamageResult } from './services/calc';
-import { parseTeam, setToPokemonOptions, type RosterMon } from './services/team';
+import { parseTeam, setToPokemonOptions, rosterMonFromSet, type RosterMon } from './services/team';
 import {
   FORMATS,
   DEFAULT_FORMAT_ID,
   getFormat,
   discoverFormats,
+  resolveFormat,
   type ResolvedFormat,
 } from './services/formats';
+import { getCommonSet, suggestedToSet, type SuggestedSet } from './services/sets';
 import { RosterCard } from './components/RosterCard';
+import { OpponentPicker } from './components/OpponentPicker';
+import { OpponentEditor } from './components/OpponentEditor';
 import './app.css';
 
 type SlotId = 'attacker' | 'defender';
+interface Assigned {
+  mon: RosterMon;
+  source: 'team' | 'opponent';
+  suggestion?: SuggestedSet;
+}
 
 const SAMPLE = `Incineroar @ Safety Goggles
 Ability: Intimidate
@@ -54,24 +64,71 @@ function DraggableCard({ mon, onAssign }: { mon: RosterMon; onAssign: (s: SlotId
   );
 }
 
-function Slot({ id, label, mon, onClear }: { id: SlotId; label: string; mon?: RosterMon; onClear: () => void }) {
+function Slot({
+  id,
+  label,
+  assigned,
+  loading,
+  onClear,
+  onPick,
+  onEdit,
+}: {
+  id: SlotId;
+  label: string;
+  assigned?: Assigned;
+  loading: boolean;
+  onClear: () => void;
+  onPick: (species: string) => void;
+  onEdit: (set: PokemonSet) => void;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} className={`slot${isOver ? ' over' : ''}${mon ? ' filled' : ''}`}>
+    <div ref={setNodeRef} className={`slot${isOver ? ' over' : ''}${assigned ? ' filled' : ''}`}>
       <div className="slot-head">
         <span>{label}</span>
-        {mon && (
+        {assigned && (
           <button type="button" className="link" onClick={onClear}>
             clear
           </button>
         )}
       </div>
-      {mon ? <RosterCard mon={mon} compact /> : <div className="slot-empty">Drag a Pokémon here</div>}
+
+      {loading && <div className="slot-empty">Loading common set…</div>}
+
+      {!loading && assigned && (
+        <>
+          <RosterCard mon={assigned.mon} compact />
+          {assigned.source === 'opponent' && assigned.suggestion && (
+            <>
+              {assigned.suggestion.note && <p className="src-note">⚠ {assigned.suggestion.note}</p>}
+              {assigned.suggestion.source === 'usage' && (
+                <p className="src-note muted">Auto-filled from {assigned.suggestion.species} usage stats</p>
+              )}
+              <OpponentEditor set={assigned.mon.set} suggestion={assigned.suggestion} onChange={onEdit} />
+            </>
+          )}
+        </>
+      )}
+
+      {!loading && !assigned && (
+        <>
+          <div className="slot-empty">Drag a team Pokémon here, or search:</div>
+          <OpponentPicker onPick={onPick} />
+        </>
+      )}
     </div>
   );
 }
 
-function MoveRows({ attacker, defender, gameType }: { attacker: RosterMon; defender: RosterMon; gameType: 'Singles' | 'Doubles' }) {
+function MoveRows({
+  attacker,
+  defender,
+  gameType,
+}: {
+  attacker: RosterMon;
+  defender: RosterMon;
+  gameType: 'Singles' | 'Doubles';
+}) {
   const rows = useMemo(() => {
     const atk = createPokemon(attacker.set.species, setToPokemonOptions(attacker.set));
     const def = createPokemon(defender.set.species, setToPokemonOptions(defender.set));
@@ -85,6 +142,8 @@ function MoveRows({ attacker, defender, gameType }: { attacker: RosterMon; defen
       }
     });
   }, [attacker, defender, gameType]);
+
+  if (rows.length === 0) return <p className="muted">Attacker has no moves selected.</p>;
 
   return (
     <table className="moves">
@@ -116,14 +175,20 @@ export default function App() {
   const [pasteText, setPasteText] = useState('');
   const [roster, setRoster] = useState<RosterMon[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
-  const [attackerId, setAttackerId] = useState<string | null>(null);
-  const [defenderId, setDefenderId] = useState<string | null>(null);
+  const [attacker, setAttacker] = useState<Assigned | null>(null);
+  const [defender, setDefender] = useState<Assigned | null>(null);
+  const [loading, setLoading] = useState<SlotId | null>(null);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
 
   useEffect(() => {
     let live = true;
-    discoverFormats().then((r) => live && setResolved(r)).catch(() => {});
+    discoverFormats()
+      .then((r) => live && setResolved(r))
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -131,37 +196,55 @@ export default function App() {
 
   const format = getFormat(formatId);
   const info = resolved?.find((r) => r.def.id === formatId);
-  const byId = (id: string | null) => roster.find((m) => m.id === id);
-  const attacker = byId(attackerId);
-  const defender = byId(defenderId);
+  const setSlot = (slot: SlotId, a: Assigned | null) => (slot === 'attacker' ? setAttacker(a) : setDefender(a));
 
   function loadPaste(text: string) {
     setPasteText(text);
     const { roster: r, errors: e } = parseTeam(text);
     setRoster(r);
     setErrors(e);
-    setAttackerId(null);
-    setDefenderId(null);
+    setAttacker(null);
+    setDefender(null);
   }
 
-  function assign(slot: SlotId, id: string) {
+  function assignFromRoster(slot: SlotId, mon: RosterMon) {
+    const next: Assigned = { mon, source: 'team' };
     if (slot === 'attacker') {
-      setAttackerId(id);
-      if (defenderId === id) setDefenderId(null);
+      setAttacker(next);
+      if (defender?.source === 'team' && defender.mon.id === mon.id) setDefender(null);
     } else {
-      setDefenderId(id);
-      if (attackerId === id) setAttackerId(null);
+      setDefender(next);
+      if (attacker?.source === 'team' && attacker.mon.id === mon.id) setAttacker(null);
     }
+  }
+
+  async function pickOpponent(slot: SlotId, species: string) {
+    setLoading(slot);
+    try {
+      const rf = info ?? (await resolveFormat(format));
+      const suggestion = await getCommonSet(species, rf);
+      const mon = rosterMonFromSet(suggestedToSet(suggestion), `opp-${slot}`);
+      if (mon) setSlot(slot, { mon, source: 'opponent', suggestion });
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  function editOpponent(slot: SlotId, current: Assigned, nextSet: PokemonSet) {
+    const mon = rosterMonFromSet(nextSet, `opp-${slot}`) ?? current.mon;
+    setSlot(slot, { ...current, mon });
   }
 
   function onDragEnd(e: DragEndEvent) {
     const over = e.over?.id;
-    if (over === 'attacker' || over === 'defender') assign(over, String(e.active.id));
+    if (over !== 'attacker' && over !== 'defender') return;
+    const mon = roster.find((m) => m.id === String(e.active.id));
+    if (mon) assignFromRoster(over, mon);
   }
 
   function swap() {
-    setAttackerId(defenderId);
-    setDefenderId(attackerId);
+    setAttacker(defender);
+    setDefender(attacker);
   }
 
   const groups = useMemo(() => {
@@ -179,7 +262,7 @@ export default function App() {
         <header className="app-head">
           <h1>Damage Calculator</h1>
           <div className="format-pick">
-            <select value={formatId} onChange={(e) => setFormatId(e.target.value)}>
+            <select value={formatId} onChange={(e) => setFormatId(e.target.value)} aria-label="Format">
               {groups.map(([group, fmts]) => (
                 <optgroup key={group} label={group}>
                   {fmts.map((f) => (
@@ -219,7 +302,7 @@ export default function App() {
             )}
             <div className="roster">
               {roster.map((mon) => (
-                <DraggableCard key={mon.id} mon={mon} onAssign={(s) => assign(s, mon.id)} />
+                <DraggableCard key={mon.id} mon={mon} onAssign={(s) => assignFromRoster(s, mon)} />
               ))}
               {roster.length === 0 && <p className="muted">No Pokémon yet — paste a team or load the sample.</p>}
             </div>
@@ -227,19 +310,39 @@ export default function App() {
 
           <section className="calc-col">
             <div className="slots">
-              <Slot id="attacker" label="Attacker" mon={attacker} onClear={() => setAttackerId(null)} />
-              <button type="button" className="swap" onClick={swap} title="Swap attacker/defender" disabled={!attacker && !defender}>
+              <Slot
+                id="attacker"
+                label="Attacker"
+                assigned={attacker ?? undefined}
+                loading={loading === 'attacker'}
+                onClear={() => setAttacker(null)}
+                onPick={(s) => pickOpponent('attacker', s)}
+                onEdit={(set) => attacker && editOpponent('attacker', attacker, set)}
+              />
+              <button
+                type="button"
+                className="swap"
+                onClick={swap}
+                title="Swap attacker/defender"
+                disabled={!attacker && !defender}
+              >
                 ⇄
               </button>
-              <Slot id="defender" label="Defender" mon={defender} onClear={() => setDefenderId(null)} />
+              <Slot
+                id="defender"
+                label="Defender"
+                assigned={defender ?? undefined}
+                loading={loading === 'defender'}
+                onClear={() => setDefender(null)}
+                onPick={(s) => pickOpponent('defender', s)}
+                onEdit={(set) => defender && editOpponent('defender', defender, set)}
+              />
             </div>
 
             {attacker && defender ? (
-              <MoveRows attacker={attacker} defender={defender} gameType={format.gameType} />
+              <MoveRows attacker={attacker.mon} defender={defender.mon} gameType={format.gameType} />
             ) : (
-              <p className="muted">
-                Fill both slots — drag a card in, or use the ⚔ / 🛡 buttons on each card.
-              </p>
+              <p className="muted">Fill both slots — drag a team card in, or search a Pokémon to auto-fill its common set.</p>
             )}
           </section>
         </div>
