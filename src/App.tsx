@@ -10,7 +10,9 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import type { PokemonSet } from '@pkmn/sets';
-import { createPokemon, createMove, runCalc, makeField, type DamageResult } from './services/calc';
+import { createPokemon, createMove, runCalc, buildField, withCrit, type DamageResult } from './services/calc';
+import { DEFAULT_CONDITIONS, DEFAULT_MODS, type Conditions, type Mods } from './services/conditions';
+import { ConditionsPanel } from './components/ConditionsPanel';
 import {
   parseTeam,
   setToPokemonOptions,
@@ -152,24 +154,38 @@ function MoveRows({
   attacker,
   defender,
   gameType,
+  conditions,
+  attackerMods,
+  defenderMods,
 }: {
   attacker: RosterMon;
   defender: RosterMon;
   gameType: 'Singles' | 'Doubles';
+  conditions: Conditions;
+  attackerMods: Mods;
+  defenderMods: Mods;
 }) {
   const rows = useMemo(() => {
-    const atk = createPokemon(attacker.set.species, setToPokemonOptions(attacker.set));
-    const def = createPokemon(defender.set.species, setToPokemonOptions(defender.set));
-    const field = makeField(gameType);
+    const atk = createPokemon(attacker.set.species, {
+      ...setToPokemonOptions(attacker.set),
+      boosts: attackerMods.boosts,
+      status: attackerMods.status || undefined,
+    });
+    const def = createPokemon(defender.set.species, {
+      ...setToPokemonOptions(defender.set),
+      boosts: defenderMods.boosts,
+      status: defenderMods.status || undefined,
+    });
+    const field = buildField(gameType, conditions);
     const moves = (attacker.set.moves ?? []).filter(Boolean);
     return moves.map((name): { name: string; r: DamageResult | null } => {
       try {
-        return { name, r: runCalc(atk, def, createMove(name), field) };
+        return { name, r: runCalc(atk, def, withCrit(createMove(name), conditions.crit), field) };
       } catch {
         return { name, r: null };
       }
     });
-  }, [attacker, defender, gameType]);
+  }, [attacker, defender, gameType, conditions, attackerMods, defenderMods]);
 
   if (rows.length === 0) return <p className="muted">Attacker has no moves selected.</p>;
 
@@ -206,6 +222,9 @@ export default function App() {
   const [attacker, setAttacker] = useState<Assigned | null>(null);
   const [defender, setDefender] = useState<Assigned | null>(null);
   const [loading, setLoading] = useState<SlotId | null>(null);
+  const [conditions, setConditions] = useState<Conditions>(DEFAULT_CONDITIONS);
+  const [attackerMods, setAttackerMods] = useState<Mods>(DEFAULT_MODS);
+  const [defenderMods, setDefenderMods] = useState<Mods>(DEFAULT_MODS);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -273,6 +292,9 @@ export default function App() {
   function swap() {
     setAttacker(defender);
     setDefender(attacker);
+    setAttackerMods(defenderMods);
+    setDefenderMods(attackerMods);
+    setConditions({ ...conditions, attackerSide: conditions.defenderSide, defenderSide: conditions.attackerSide });
   }
 
   const groups = useMemo(() => {
@@ -383,10 +405,26 @@ export default function App() {
             </div>
 
             {attacker && defender ? (
-              <MoveRows attacker={attacker.mon} defender={defender.mon} gameType={format.gameType} />
+              <MoveRows
+                attacker={attacker.mon}
+                defender={defender.mon}
+                gameType={format.gameType}
+                conditions={conditions}
+                attackerMods={attackerMods}
+                defenderMods={defenderMods}
+              />
             ) : (
               <p className="muted">Fill both slots — drag a team card in, or search a Pokémon to auto-fill its common set.</p>
             )}
+
+            <ConditionsPanel
+              conditions={conditions}
+              setConditions={setConditions}
+              attackerMods={attackerMods}
+              defenderMods={defenderMods}
+              setAttackerMods={setAttackerMods}
+              setDefenderMods={setDefenderMods}
+            />
           </section>
         </div>
       </main>

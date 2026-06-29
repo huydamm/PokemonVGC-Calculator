@@ -12,6 +12,7 @@
 import { calculate, Pokemon, Move, Field, Side, Result } from '@smogon/calc/dist/adaptable';
 import type { Generation, StatsTable, StatID } from '@pkmn/data';
 import { gen } from './data';
+import type { Conditions } from './conditions';
 
 export { Pokemon, Move, Field, Side, Result };
 
@@ -115,4 +116,34 @@ export function makeField(
   opts: ConstructorParameters<typeof Field>[0] = {},
 ): Field {
   return new Field({ gameType, ...opts });
+}
+
+/** Build a calc Field from the battle-conditions panel state. */
+export function buildField(gameType: 'Singles' | 'Doubles', c: Conditions): Field {
+  const side = (s: Conditions['attackerSide']) => ({
+    isLightScreen: s.lightScreen,
+    isReflect: s.reflect,
+    isAuroraVeil: s.auroraVeil,
+    isTailwind: s.tailwind,
+    isHelpingHand: s.helpingHand,
+    isFriendGuard: s.friendGuard,
+  });
+  return new Field({
+    gameType,
+    weather: c.weather,
+    terrain: c.terrain,
+    isGravity: c.gravity,
+    isBeadsOfRuin: c.beadsOfRuin,
+    isSwordOfRuin: c.swordOfRuin,
+    isTabletsOfRuin: c.tabletsOfRuin,
+    isVesselOfRuin: c.vesselOfRuin,
+    attackerSide: side(c.attackerSide) as never,
+    defenderSide: side(c.defenderSide) as never,
+  });
+}
+
+/** Apply a crit toggle to a move (mutates and returns it). */
+export function withCrit(move: Move, crit: boolean): Move {
+  move.isCrit = crit;
+  return move;
 }

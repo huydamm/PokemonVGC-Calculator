@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prove": "tsx scripts/prove-engine.ts",
+    "smoke": "node scripts/smoke.mjs",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

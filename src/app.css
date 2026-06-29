@@ -362,6 +362,118 @@ textarea {
   max-width: 100%;
 }
 
+.conditions {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+.conditions h3 {
+  font-size: 1rem;
+  margin: 0 0 0.6rem;
+}
+.conditions h4 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  margin: 0 0 0.4rem;
+}
+.cond-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin-bottom: 0.6rem;
+}
+.seg-label {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+.seg-btns {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.seg-btns button {
+  border: none;
+  background: var(--panel);
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  border-right: 1px solid var(--border);
+}
+.seg-btns button:last-child {
+  border-right: none;
+}
+.seg-btns button.on {
+  background: var(--accent);
+  color: #fff;
+}
+.cond-flags {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.3rem 0.8rem;
+  margin-bottom: 0.7rem;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+.cond-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  margin-bottom: 0.7rem;
+}
+@media (max-width: 540px) {
+  .cond-sides {
+    grid-template-columns: 1fr;
+  }
+}
+.cond-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.stages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.3rem;
+}
+.stage {
+  display: grid;
+  grid-template-columns: 2.5rem 1.8rem 2.2rem 1.8rem;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+}
+.stage button {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 6px;
+  cursor: pointer;
+  height: 1.6rem;
+}
+.stage b {
+  text-align: center;
+}
+.stage b.pos {
+  color: #1a8f3c;
+}
+.stage b.neg {
+  color: #c0392b;
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
