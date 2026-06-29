@@ -161,6 +161,7 @@ export default function App() {
   const [conditions, setConditions] = useState<Conditions>(DEFAULT_CONDITIONS);
   const [attackerMods, setAttackerMods] = useState<Mods>(DEFAULT_MODS);
   const [defenderMods, setDefenderMods] = useState<Mods>(DEFAULT_MODS);
+  const [discoverError, setDiscoverError] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -171,11 +172,17 @@ export default function App() {
     let live = true;
     discoverFormats()
       .then((r) => live && setResolved(r))
-      .catch(() => {});
+      .catch(() => live && setDiscoverError(true));
     return () => {
       live = false;
     };
   }, []);
+
+  function resetConditions() {
+    setConditions(DEFAULT_CONDITIONS);
+    setAttackerMods(DEFAULT_MODS);
+    setDefenderMods(DEFAULT_MODS);
+  }
 
   const format = getFormat(formatId);
   const info = resolved?.find((r) => r.def.id === formatId);
@@ -272,6 +279,12 @@ export default function App() {
           </div>
         </header>
 
+        {discoverError && (
+          <p className="warn">
+            ⚠ Couldn't reach data.pkmn.cc — opponent auto-fill will use base stats until it's reachable. Calcs still work.
+          </p>
+        )}
+
         <div className="columns">
           <section className="paste-col">
             <label htmlFor="paste">Paste your team (Showdown export)</label>
@@ -360,6 +373,7 @@ export default function App() {
               defenderMods={defenderMods}
               setAttackerMods={setAttackerMods}
               setDefenderMods={setDefenderMods}
+              onReset={resetConditions}
             />
           </section>
         </div>

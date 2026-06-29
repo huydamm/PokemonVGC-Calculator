@@ -107,6 +107,7 @@ export function ConditionsPanel({
   defenderMods,
   setAttackerMods,
   setDefenderMods,
+  onReset,
 }: {
   conditions: Conditions;
   setConditions: (c: Conditions) => void;
@@ -114,6 +115,7 @@ export function ConditionsPanel({
   defenderMods: Mods;
   setAttackerMods: (m: Mods) => void;
   setDefenderMods: (m: Mods) => void;
+  onReset: () => void;
 }) {
   const c = conditions;
   const set = (patch: Partial<Conditions>) => setConditions({ ...c, ...patch });
@@ -122,7 +124,12 @@ export function ConditionsPanel({
 
   return (
     <section className="conditions">
-      <h3>Battle conditions</h3>
+      <div className="cond-header">
+        <h3>Battle conditions</h3>
+        <button type="button" className="link" onClick={onReset}>
+          reset
+        </button>
+      </div>
       <div className="cond-top">
         <Segmented<Weather>
           label="Weather"
