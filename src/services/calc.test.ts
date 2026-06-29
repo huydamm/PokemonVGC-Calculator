@@ -1,0 +1,74 @@
+import { describe, it, expect } from 'vitest';
+import { createPokemon, createMove, runCalc, vgcField } from './calc';
+import { gen } from './data';
+
+const garchomp = () => createPokemon('Garchomp', { evs: { hp: 4 } });
+
+// Expected ranges/descriptions hardcoded from the real Showdown calc engine
+// (the bundled @smogon/calc, which powers calc.pokemonshowdown.com).
+describe('engine: known damage calcs', () => {
+  it('Choice Specs Charizard Flamethrower in Sun through Light Screen', () => {
+    const r = runCalc(
+      createPokemon('Charizard', { evs: { spa: 252 }, nature: 'Modest', item: 'Choice Specs' }),
+      garchomp(),
+      createMove('Flamethrower'),
+      vgcField({ weather: 'Sun', defenderSide: { isLightScreen: true } }),
+    );
+    // Doubles: Light Screen reduces special damage to 2/3 (not 1/2 as in Singles).
+    expect(r.range).toEqual([64, 75]);
+    expect(r.desc).toContain('64-75 (34.7 - 40.7%)');
+    expect(r.desc).toContain('guaranteed 3HKO');
+  });
+
+  it('spread move (Heat Wave) takes the 0.75x doubles reduction', () => {
+    const single = runCalc(
+      createPokemon('Charizard', { evs: { spa: 252 }, nature: 'Modest' }),
+      garchomp(),
+      createMove('Flamethrower'),
+      vgcField({ weather: 'Sun' }),
+    );
+    const spread = runCalc(
+      createPokemon('Charizard', { evs: { spa: 252 }, nature: 'Modest' }),
+      garchomp(),
+      createMove('Heat Wave'),
+      vgcField({ weather: 'Sun' }),
+    );
+    // Heat Wave (95 BP spread) should land below Flamethrower (90 BP single) here
+    // because the spread move eats the 0.75x doubles multiplier.
+    expect(spread.range[1]).toBeLessThan(single.range[1]);
+  });
+});
+
+describe('mega forme resolution', () => {
+  it('a present Mega applies post-Mega stats and forces its ability', () => {
+    const zard = createPokemon('Charizard-Mega-Y', { evs: { spa: 252 }, nature: 'Modest' });
+    expect(zard.ability).toBe('Drought'); // Mega ability overwrites base (Blaze)
+    expect(zard.species.baseStats.spa).toBe(159); // post-Mega base SpA
+
+    const r = runCalc(zard, garchomp(), createMove('Flamethrower'), vgcField({ weather: 'Sun' }));
+    expect(r.range).toEqual([84, 99]);
+    expect(r.desc).toContain('Charizard-Mega-Y');
+  });
+
+  it('classic Megas omitted from Champions are still in the data layer (e.g. Salamence-Mega)', () => {
+    expect(gen.species.get('Salamence-Mega')).toBeTruthy();
+  });
+
+  it('a brand-new Champions Mega that IS in live data calcs without throwing', () => {
+    // @pkmn/dex tracks Showdown, which has implemented most Champions Megas
+    // (flagged isNonstandard:'Future'). Pyroar-Mega has a novel ability.
+    const py = createPokemon('Pyroar-Mega', { evs: { spa: 252 }, nature: 'Modest' });
+    expect(py.ability).toBe('Fire Mane');
+    expect(py.species.baseStats.spa).toBe(129);
+    expect(() => runCalc(py, garchomp(), createMove('Flamethrower'), vgcField({ weather: 'Sun' }))).not.toThrow();
+  });
+
+  it('a Mega genuinely absent from the data degrades to base forme without throwing', () => {
+    // Tatsugiri-Mega / Annihilape-Mega are not yet in @pkmn/dex. The UI hides
+    // them; resolution must degrade to the base forme rather than crash.
+    expect(gen.species.get('Tatsugiri-Mega')).toBeUndefined();
+    const base = gen.species.get('Tatsugiri-Mega') ?? gen.species.get('Tatsugiri');
+    expect(base?.name).toBe('Tatsugiri');
+    expect(() => createPokemon(base!.name)).not.toThrow();
+  });
+});

@@ -1,0 +1,34 @@
+{
+  "name": "vgc-damage-calculator",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prove": "tsx scripts/prove-engine.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@pkmn/data": "^0.10.11",
+    "@pkmn/dex": "^0.10.11",
+    "@pkmn/sets": "^5.2.0",
+    "@pkmn/smogon": "^0.5.31",
+    "@smogon/calc": "^0.11.0",
+    "@dnd-kit/core": "^6.3.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vitest": "^2.1.8"
+  }
+}
