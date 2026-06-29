@@ -17,6 +17,14 @@ body {
   color: var(--text);
 }
 
+/* Keep form controls readable regardless of OS dark mode. */
+input,
+textarea,
+select,
+button {
+  color: var(--text);
+}
+
 .app {
   max-width: 1080px;
   margin: 0 auto;

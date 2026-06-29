@@ -1,5 +1,7 @@
 :root {
-  color-scheme: light dark;
+  /* The UI is a light design; lock the scheme so dark-mode browsers don't
+     invert form-control text to white (which vanished on the light panels). */
+  color-scheme: light;
 }
 body {
   margin: 0;

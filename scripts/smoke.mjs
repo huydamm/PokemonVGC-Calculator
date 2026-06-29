@@ -80,6 +80,9 @@ async function main() {
 
   await cdp(browserWs, 'Runtime.enable', {}, sessionId);
   await cdp(browserWs, 'Page.enable', {}, sessionId);
+  if (process.env.DARK) {
+    await cdp(browserWs, 'Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] }, sessionId);
+  }
   if (process.env.SHOT) {
     await cdp(
       browserWs,
