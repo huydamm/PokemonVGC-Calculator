@@ -7,6 +7,8 @@
  * Usage: node scripts/smoke.mjs [url]
  */
 import { spawn } from 'node:child_process';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 const URL = process.argv[2] ?? 'http://localhost:5199/';
 const CHROME =
@@ -78,6 +80,14 @@ async function main() {
 
   await cdp(browserWs, 'Runtime.enable', {}, sessionId);
   await cdp(browserWs, 'Page.enable', {}, sessionId);
+  if (process.env.SHOT) {
+    await cdp(
+      browserWs,
+      'Emulation.setDeviceMetricsOverride',
+      { width: 1200, height: 1500, deviceScaleFactor: 1, mobile: false },
+      sessionId,
+    );
+  }
   await cdp(browserWs, 'Page.navigate', { url: URL }, sessionId);
   await sleep(3500);
 
@@ -99,6 +109,13 @@ async function main() {
   const summary = await run(
     `JSON.stringify({rows: document.querySelectorAll('.moves tbody tr').length, h1: document.querySelector('h1')?.textContent})`,
   );
+
+  if (process.env.SHOT) {
+    const shot = await cdp(browserWs, 'Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }, sessionId);
+    mkdirSync(dirname(process.env.SHOT), { recursive: true });
+    writeFileSync(process.env.SHOT, Buffer.from(shot.data, 'base64'));
+    console.log('screenshot saved:', process.env.SHOT);
+  }
 
   console.log('page summary:', summary.result.value);
   if (errors.length) {
