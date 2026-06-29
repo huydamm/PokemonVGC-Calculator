@@ -27,10 +27,12 @@ export interface Conditions {
   defenderSide: SideConditions;
 }
 
-/** Per-Pokémon modifiers (stat stages + status) layered onto the parsed set. */
+/** Per-Pokémon modifiers (stat stages, status, Tera) layered onto the parsed set. */
 export interface Mods {
   boosts: Partial<StatsTable>;
   status: Status;
+  /** Whether this Pokémon is Terastallized (applies its set's Tera type). */
+  tera: boolean;
 }
 
 export const STAT_STAGE_KEYS: (keyof StatsTable)[] = ['atk', 'def', 'spa', 'spd', 'spe'];
@@ -67,4 +69,4 @@ export const DEFAULT_CONDITIONS: Conditions = {
   defenderSide: emptySide(),
 };
 
-export const DEFAULT_MODS: Mods = { boosts: {}, status: '' };
+export const DEFAULT_MODS: Mods = { boosts: {}, status: '', tera: false };

@@ -128,6 +128,23 @@ textarea {
 .forme-pick {
   margin-top: 0.5rem;
 }
+.tera-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tera-toggle.on {
+  border-color: #c026d3;
+  background: #fbeafe;
+  color: #86198f;
+}
 
 .roster {
   display: flex;

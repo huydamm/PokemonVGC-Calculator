@@ -39,6 +39,23 @@ describe('engine: known damage calcs', () => {
   });
 });
 
+describe('terastallization', () => {
+  it('passing teraType flags the Pokémon as Tera and boosts matching-type STAB', () => {
+    const target = () => createPokemon('Garchomp', { evs: { hp: 252 } });
+    const opts = { evs: { spa: 252 }, nature: 'Modest' as const };
+    const noTera = runCalc(createPokemon('Gardevoir', opts), target(), createMove('Dazzling Gleam'), vgcField());
+    const tera = runCalc(
+      createPokemon('Gardevoir', { ...opts, teraType: 'Fairy' }),
+      target(),
+      createMove('Dazzling Gleam'),
+      vgcField(),
+    );
+    expect(tera.desc).toContain('Tera Fairy');
+    expect(noTera.desc).not.toContain('Tera');
+    expect(tera.range[1]).toBeGreaterThan(noTera.range[1]); // Tera STAB 1.5x -> 2x
+  });
+});
+
 describe('mega forme resolution', () => {
   it('a present Mega applies post-Mega stats and forces its ability', () => {
     const zard = createPokemon('Charizard-Mega-Y', { evs: { spa: 252 }, nature: 'Modest' });

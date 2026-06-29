@@ -33,11 +33,13 @@ export function Results({
   const rows = useMemo<MoveResult[]>(() => {
     const atk = createPokemon(attacker.set.species, {
       ...setToPokemonOptions(attacker.set),
+      teraType: attackerMods.tera ? attacker.set.teraType : undefined,
       boosts: attackerMods.boosts,
       status: attackerMods.status || undefined,
     });
     const def = createPokemon(defender.set.species, {
       ...setToPokemonOptions(defender.set),
+      teraType: defenderMods.tera ? defender.set.teraType : undefined,
       boosts: defenderMods.boosts,
       status: defenderMods.status || undefined,
     });

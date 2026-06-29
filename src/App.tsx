@@ -79,20 +79,24 @@ function Slot({
   assigned,
   loading,
   megasEnabled,
+  tera,
   onClear,
   onPick,
   onEdit,
   onForme,
+  onToggleTera,
 }: {
   id: SlotId;
   label: string;
   assigned?: Assigned;
   loading: boolean;
   megasEnabled: boolean;
+  tera: boolean;
   onClear: () => void;
   onPick: (species: string) => void;
   onEdit: (set: PokemonSet) => void;
   onForme: (set: PokemonSet) => void;
+  onToggleTera: (v: boolean) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   const formes = megasEnabled && assigned ? formeOptions(assigned.mon.speciesName) : [];
@@ -112,6 +116,12 @@ function Slot({
       {!loading && assigned && (
         <>
           <RosterCard mon={assigned.mon} compact />
+          {assigned.mon.teraType && (
+            <label className={`tera-toggle${tera ? ' on' : ''}`}>
+              <input type="checkbox" checked={tera} onChange={(e) => onToggleTera(e.target.checked)} />
+              <span>Terastallize → {assigned.mon.teraType}</span>
+            </label>
+          )}
           {formes.length > 1 && (
             <label className="editor-field forme-pick">
               <span>Forme</span>
@@ -326,10 +336,12 @@ export default function App() {
                 assigned={attacker ?? undefined}
                 loading={loading === 'attacker'}
                 megasEnabled={format.megasEnabled}
+                tera={attackerMods.tera}
                 onClear={() => setAttacker(null)}
                 onPick={(s) => pickOpponent('attacker', s)}
                 onEdit={(set) => attacker && changeSet('attacker', attacker, set)}
                 onForme={(set) => attacker && changeSet('attacker', attacker, set)}
+                onToggleTera={(v) => setAttackerMods({ ...attackerMods, tera: v })}
               />
               <button
                 type="button"
@@ -346,10 +358,12 @@ export default function App() {
                 assigned={defender ?? undefined}
                 loading={loading === 'defender'}
                 megasEnabled={format.megasEnabled}
+                tera={defenderMods.tera}
                 onClear={() => setDefender(null)}
                 onPick={(s) => pickOpponent('defender', s)}
                 onEdit={(set) => defender && changeSet('defender', defender, set)}
                 onForme={(set) => defender && changeSet('defender', defender, set)}
+                onToggleTera={(v) => setDefenderMods({ ...defenderMods, tera: v })}
               />
             </div>
 
