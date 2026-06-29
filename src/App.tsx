@@ -10,12 +10,11 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import type { PokemonSet } from '@pkmn/sets';
-import { createPokemon, createMove, runCalc, buildField, withCrit, type DamageResult } from './services/calc';
 import { DEFAULT_CONDITIONS, DEFAULT_MODS, type Conditions, type Mods } from './services/conditions';
 import { ConditionsPanel } from './components/ConditionsPanel';
+import { Results } from './components/Results';
 import {
   parseTeam,
-  setToPokemonOptions,
   rosterMonFromSet,
   formeOptions,
   applyForme,
@@ -147,69 +146,6 @@ function Slot({
         </>
       )}
     </div>
-  );
-}
-
-function MoveRows({
-  attacker,
-  defender,
-  gameType,
-  conditions,
-  attackerMods,
-  defenderMods,
-}: {
-  attacker: RosterMon;
-  defender: RosterMon;
-  gameType: 'Singles' | 'Doubles';
-  conditions: Conditions;
-  attackerMods: Mods;
-  defenderMods: Mods;
-}) {
-  const rows = useMemo(() => {
-    const atk = createPokemon(attacker.set.species, {
-      ...setToPokemonOptions(attacker.set),
-      boosts: attackerMods.boosts,
-      status: attackerMods.status || undefined,
-    });
-    const def = createPokemon(defender.set.species, {
-      ...setToPokemonOptions(defender.set),
-      boosts: defenderMods.boosts,
-      status: defenderMods.status || undefined,
-    });
-    const field = buildField(gameType, conditions);
-    const moves = (attacker.set.moves ?? []).filter(Boolean);
-    return moves.map((name): { name: string; r: DamageResult | null } => {
-      try {
-        return { name, r: runCalc(atk, def, withCrit(createMove(name), conditions.crit), field) };
-      } catch {
-        return { name, r: null };
-      }
-    });
-  }, [attacker, defender, gameType, conditions, attackerMods, defenderMods]);
-
-  if (rows.length === 0) return <p className="muted">Attacker has no moves selected.</p>;
-
-  return (
-    <table className="moves">
-      <thead>
-        <tr>
-          <th>Move</th>
-          <th>Damage</th>
-          <th>%</th>
-          <th>Result</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map(({ name, r }) => (
-          <tr key={name}>
-            <td>{name}</td>
-            <td>{r ? `${r.range[0]}–${r.range[1]}` : '—'}</td>
-            <td>{r ? `${r.percent[0]}–${r.percent[1]}%` : '—'}</td>
-            <td className="ko">{r ? r.ko.text || r.desc.split('--')[1]?.trim() : 'status / no damage'}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
   );
 }
 
@@ -405,7 +341,7 @@ export default function App() {
             </div>
 
             {attacker && defender ? (
-              <MoveRows
+              <Results
                 attacker={attacker.mon}
                 defender={defender.mon}
                 gameType={format.gameType}
