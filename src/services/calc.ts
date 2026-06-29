@@ -108,3 +108,11 @@ export function runCalc(
 export function vgcField(opts: ConstructorParameters<typeof Field>[0] = {}): Field {
   return new Field({ gameType: 'Doubles', ...opts });
 }
+
+/** Build a Field for the given game type (Doubles applies the spread-move 0.75x). */
+export function makeField(
+  gameType: 'Singles' | 'Doubles',
+  opts: ConstructorParameters<typeof Field>[0] = {},
+): Field {
+  return new Field({ gameType, ...opts });
+}
