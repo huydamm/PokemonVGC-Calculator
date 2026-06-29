@@ -11,7 +11,15 @@ import {
 } from '@dnd-kit/core';
 import type { PokemonSet } from '@pkmn/sets';
 import { createPokemon, createMove, runCalc, makeField, type DamageResult } from './services/calc';
-import { parseTeam, setToPokemonOptions, rosterMonFromSet, type RosterMon } from './services/team';
+import {
+  parseTeam,
+  setToPokemonOptions,
+  rosterMonFromSet,
+  formeOptions,
+  applyForme,
+  isMegaForme,
+  type RosterMon,
+} from './services/team';
 import {
   FORMATS,
   DEFAULT_FORMAT_ID,
@@ -69,19 +77,24 @@ function Slot({
   label,
   assigned,
   loading,
+  megasEnabled,
   onClear,
   onPick,
   onEdit,
+  onForme,
 }: {
   id: SlotId;
   label: string;
   assigned?: Assigned;
   loading: boolean;
+  megasEnabled: boolean;
   onClear: () => void;
   onPick: (species: string) => void;
   onEdit: (set: PokemonSet) => void;
+  onForme: (set: PokemonSet) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
+  const formes = megasEnabled && assigned ? formeOptions(assigned.mon.speciesName) : [];
   return (
     <div ref={setNodeRef} className={`slot${isOver ? ' over' : ''}${assigned ? ' filled' : ''}`}>
       <div className="slot-head">
@@ -98,6 +111,21 @@ function Slot({
       {!loading && assigned && (
         <>
           <RosterCard mon={assigned.mon} compact />
+          {formes.length > 1 && (
+            <label className="editor-field forme-pick">
+              <span>Forme</span>
+              <select
+                value={assigned.mon.speciesName}
+                onChange={(e) => onForme(applyForme(assigned.mon.set, e.target.value))}
+              >
+                {formes.map((f) => (
+                  <option key={f.name} value={f.name}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {assigned.source === 'opponent' && assigned.suggestion && (
             <>
               {assigned.suggestion.note && <p className="src-note">⚠ {assigned.suggestion.note}</p>}
@@ -230,8 +258,8 @@ export default function App() {
     }
   }
 
-  function editOpponent(slot: SlotId, current: Assigned, nextSet: PokemonSet) {
-    const mon = rosterMonFromSet(nextSet, `opp-${slot}`) ?? current.mon;
+  function changeSet(slot: SlotId, current: Assigned, nextSet: PokemonSet) {
+    const mon = rosterMonFromSet(nextSet, `${current.source}-${slot}`) ?? current.mon;
     setSlot(slot, { ...current, mon });
   }
 
@@ -255,6 +283,12 @@ export default function App() {
     }
     return [...m.entries()];
   }, []);
+
+  // One-Mega-per-team rule (non-blocking): count Megas across the pasted roster.
+  const megaRosterCount = useMemo(
+    () => (format.megasEnabled ? roster.filter((m) => isMegaForme(m.speciesName)).length : 0),
+    [roster, format.megasEnabled],
+  );
 
   return (
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
@@ -300,6 +334,11 @@ export default function App() {
                 ))}
               </ul>
             )}
+            {megaRosterCount > 1 && (
+              <p className="warn">
+                ⚠ {megaRosterCount} Mega Pokémon on this team — only one Mega Evolution is legal per team.
+              </p>
+            )}
             <div className="roster">
               {roster.map((mon) => (
                 <DraggableCard key={mon.id} mon={mon} onAssign={(s) => assignFromRoster(s, mon)} />
@@ -315,9 +354,11 @@ export default function App() {
                 label="Attacker"
                 assigned={attacker ?? undefined}
                 loading={loading === 'attacker'}
+                megasEnabled={format.megasEnabled}
                 onClear={() => setAttacker(null)}
                 onPick={(s) => pickOpponent('attacker', s)}
-                onEdit={(set) => attacker && editOpponent('attacker', attacker, set)}
+                onEdit={(set) => attacker && changeSet('attacker', attacker, set)}
+                onForme={(set) => attacker && changeSet('attacker', attacker, set)}
               />
               <button
                 type="button"
@@ -333,9 +374,11 @@ export default function App() {
                 label="Defender"
                 assigned={defender ?? undefined}
                 loading={loading === 'defender'}
+                megasEnabled={format.megasEnabled}
                 onClear={() => setDefender(null)}
                 onPick={(s) => pickOpponent('defender', s)}
-                onEdit={(set) => defender && editOpponent('defender', defender, set)}
+                onEdit={(set) => defender && changeSet('defender', defender, set)}
+                onForme={(set) => defender && changeSet('defender', defender, set)}
               />
             </div>
 

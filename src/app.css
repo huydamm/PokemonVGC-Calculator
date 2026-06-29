@@ -108,6 +108,18 @@ textarea {
   color: var(--muted);
   font-size: 0.9rem;
 }
+.warn {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.7rem;
+  background: #fff7e6;
+  border: 1px solid #f0d9a8;
+  border-radius: 8px;
+  color: #8a5a00;
+  font-size: 0.84rem;
+}
+.forme-pick {
+  margin-top: 0.5rem;
+}
 
 .roster {
   display: flex;

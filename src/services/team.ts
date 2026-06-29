@@ -131,6 +131,46 @@ export function searchSpecies(query: string, limit = 40): SpeciesEntry[] {
   return [...starts, ...contains].slice(0, limit);
 }
 
+export interface FormeOption {
+  name: string;
+  label: string;
+  isMega: boolean;
+}
+
+/** True if a species name resolves to a Mega/Primal forme in the data. */
+export function isMegaForme(speciesName: string): boolean {
+  const sp = gen.species.get(speciesName);
+  return !!sp && !!(sp.isMega || sp.isPrimal);
+}
+
+/**
+ * Base forme + any Mega/Primal formes of a species present in the data.
+ * Champions adds Megas that never shipped on cartridge; ones the data layer
+ * doesn't know are simply absent here (the UI then can't offer them).
+ */
+export function formeOptions(speciesName: string): FormeOption[] {
+  const sp = gen.species.get(speciesName);
+  if (!sp) return [];
+  const base = gen.species.get(sp.baseSpecies) ?? sp;
+  const out: FormeOption[] = [{ name: base.name, label: 'Base', isMega: false }];
+  for (const cand of gen.species) {
+    if (cand.baseSpecies === base.name && (cand.isMega || cand.isPrimal)) {
+      out.push({ name: cand.name, label: (cand.forme || 'Mega').replace(/-/g, ' '), isMega: true });
+    }
+  }
+  return out;
+}
+
+/** Switch a set's forme, forcing the Mega's ability (Megas overwrite ability). */
+export function applyForme(set: PokemonSet, speciesName: string): PokemonSet {
+  const sp = gen.species.get(speciesName);
+  if (!sp) return set;
+  const abilities = Object.values(sp.abilities) as string[];
+  const isMega = sp.isMega || sp.isPrimal;
+  const ability = isMega ? abilities[0] : abilities.includes(set.ability) ? set.ability : abilities[0];
+  return { ...set, species: sp.name, ability };
+}
+
 /** Parse a Showdown team export into roster cards + per-mon errors. */
 export function parseTeam(text: string): ParseResult {
   const trimmed = text.trim();
