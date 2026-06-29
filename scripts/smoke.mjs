@@ -97,6 +97,13 @@ async function main() {
   // Drive the core flow via injected DOM interactions.
   const run = (expr) => cdp(browserWs, 'Runtime.evaluate', { expression: expr, awaitPromise: true }, sessionId);
 
+  // 0) optionally switch format (e.g. FORMAT=gen9champions)
+  if (process.env.FORMAT) {
+    await run(
+      `{const s=document.querySelector('select[aria-label="Format"]'); if(s){const set=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set; set.call(s,'${process.env.FORMAT}'); s.dispatchEvent(new Event('change',{bubbles:true}));}}`,
+    );
+    await sleep(300);
+  }
   // 1) load sample team
   await run(`[...document.querySelectorAll('button')].find(b=>b.textContent.includes('load sample team'))?.click()`);
   await sleep(800);
@@ -110,7 +117,7 @@ async function main() {
   await sleep(2500); // wait for set fetch + calc
 
   const summary = await run(
-    `JSON.stringify({rows: document.querySelectorAll('.moves tbody tr').length, h1: document.querySelector('h1')?.textContent})`,
+    `JSON.stringify({rows: document.querySelectorAll('.moves tbody tr').length, h1: document.querySelector('h1')?.textContent, scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth})`,
   );
 
   if (process.env.SHOT) {
