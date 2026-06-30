@@ -45,10 +45,12 @@ function Select({
 export function OpponentEditor({
   set,
   suggestion,
+  teraEnabled,
   onChange,
 }: {
   set: PokemonSet;
   suggestion: SuggestedSet;
+  teraEnabled: boolean;
   onChange: (next: PokemonSet) => void;
 }) {
   const patch = (p: Partial<PokemonSet>) => onChange({ ...set, ...p });
@@ -61,13 +63,15 @@ export function OpponentEditor({
       <div className="editor-grid">
         <Select label="Ability" value={set.ability} options={suggestion.abilities} onChange={(v) => patch({ ability: v })} />
         <Select label="Item" value={set.item} options={suggestion.items} onChange={(v) => patch({ item: v })} allowBlank />
-        <Select
-          label="Tera"
-          value={set.teraType ?? ''}
-          options={suggestion.teraTypes}
-          onChange={(v) => patch({ teraType: v })}
-          allowBlank
-        />
+        {teraEnabled && (
+          <Select
+            label="Tera"
+            value={set.teraType ?? ''}
+            options={suggestion.teraTypes}
+            onChange={(v) => patch({ teraType: v })}
+            allowBlank
+          />
+        )}
         {suggestion.spreads.length > 0 && (
           <label className="editor-field">
             <span>Spread</span>

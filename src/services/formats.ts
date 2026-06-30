@@ -34,6 +34,8 @@ export interface FormatDef {
   gameType: GameType;
   level: number;
   megasEnabled: boolean;
+  /** Terastallization legal? (Champions uses Mega Evolution instead of Tera.) */
+  teraEnabled: boolean;
   statSystem: StatSystem;
   /** data.pkmn.cc stats ids to try, newest/most-specific first. */
   statsCandidates: string[];
@@ -50,6 +52,7 @@ export const FORMATS: FormatDef[] = [
     gameType: 'Singles',
     level: 100,
     megasEnabled: false,
+    teraEnabled: true,
     statSystem: EV_SYSTEM,
     statsCandidates: ['gen9ou'],
     setsCandidates: ['gen9ou'],
@@ -61,6 +64,7 @@ export const FORMATS: FormatDef[] = [
     gameType: 'Doubles',
     level: 50,
     megasEnabled: true,
+    teraEnabled: false,
     statSystem: SP_SYSTEM,
     // Champions data is not published yet; fall back to the newest VGC usage.
     statsCandidates: ['gen9championsvgc2026regmb', 'gen9championsvgc2026regma', 'gen9vgc2026', 'gen9vgc2025'],
@@ -73,6 +77,7 @@ export const FORMATS: FormatDef[] = [
     gameType: 'Doubles',
     level: 50,
     megasEnabled: false,
+    teraEnabled: true,
     statSystem: EV_SYSTEM,
     statsCandidates: ['gen9vgc2026', 'gen9vgc2025', 'gen9vgc2024'],
     setsCandidates: ['gen9vgc2025', 'gen9vgc2024'],

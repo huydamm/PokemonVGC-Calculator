@@ -26,7 +26,7 @@ button {
 }
 
 .app {
-  max-width: 1080px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 1rem 1rem 4rem;
 }
@@ -67,9 +67,10 @@ button {
 
 .columns {
   display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-  gap: 1rem;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 1.25rem;
   margin-top: 1rem;
+  align-items: start;
 }
 @media (max-width: 760px) {
   .columns {
@@ -278,7 +279,7 @@ textarea {
 .slots {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
+  align-items: start;
   gap: 0.6rem;
 }
 @media (max-width: 480px) {
@@ -323,6 +324,7 @@ textarea {
   height: 36px;
   cursor: pointer;
   font-size: 1.1rem;
+  margin-top: 2.2rem;
 }
 .swap:disabled {
   opacity: 0.4;
@@ -455,13 +457,15 @@ textarea {
 .editor {
   margin-top: 0.5rem;
 }
-.editor-grid,
+.editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.4rem 0.6rem;
+}
 .editor-moves {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.4rem 0.6rem;
-}
-.editor-moves {
   margin-top: 0.4rem;
 }
 .editor-field {

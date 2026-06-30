@@ -118,7 +118,7 @@ function Slot({
       {!loading && assigned && (
         <>
           <RosterCard mon={assigned.mon} compact />
-          {assigned.mon.teraType && (
+          {format.teraEnabled && assigned.mon.teraType && (
             <label className={`tera-toggle${tera ? ' on' : ''}`}>
               <input type="checkbox" checked={tera} onChange={(e) => onToggleTera(e.target.checked)} />
               <span>Terastallize → {assigned.mon.teraType}</span>
@@ -145,7 +145,12 @@ function Slot({
               {assigned.suggestion.source === 'usage' && (
                 <p className="src-note muted">Auto-filled from {assigned.suggestion.species} usage stats</p>
               )}
-              <OpponentEditor set={assigned.mon.set} suggestion={assigned.suggestion} onChange={onEdit} />
+              <OpponentEditor
+                set={assigned.mon.set}
+                suggestion={assigned.suggestion}
+                teraEnabled={format.teraEnabled}
+                onChange={onEdit}
+              />
             </>
           )}
           <details className="spread-details">
@@ -378,6 +383,7 @@ export default function App() {
                 attacker={attacker.mon}
                 defender={defender.mon}
                 gameType={format.gameType}
+                teraEnabled={format.teraEnabled}
                 conditions={conditions}
                 attackerMods={attackerMods}
                 defenderMods={defenderMods}

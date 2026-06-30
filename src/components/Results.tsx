@@ -19,6 +19,7 @@ export function Results({
   attacker,
   defender,
   gameType,
+  teraEnabled,
   conditions,
   attackerMods,
   defenderMods,
@@ -26,6 +27,7 @@ export function Results({
   attacker: RosterMon;
   defender: RosterMon;
   gameType: 'Singles' | 'Doubles';
+  teraEnabled: boolean;
   conditions: Conditions;
   attackerMods: Mods;
   defenderMods: Mods;
@@ -33,13 +35,13 @@ export function Results({
   const rows = useMemo<MoveResult[]>(() => {
     const atk = createPokemon(attacker.set.species, {
       ...setToPokemonOptions(attacker.set),
-      teraType: attackerMods.tera ? attacker.set.teraType : undefined,
+      teraType: teraEnabled && attackerMods.tera ? attacker.set.teraType : undefined,
       boosts: attackerMods.boosts,
       status: attackerMods.status || undefined,
     });
     const def = createPokemon(defender.set.species, {
       ...setToPokemonOptions(defender.set),
-      teraType: defenderMods.tera ? defender.set.teraType : undefined,
+      teraType: teraEnabled && defenderMods.tera ? defender.set.teraType : undefined,
       boosts: defenderMods.boosts,
       status: defenderMods.status || undefined,
     });
@@ -52,7 +54,7 @@ export function Results({
         return { name, r: null };
       }
     });
-  }, [attacker, defender, gameType, conditions, attackerMods, defenderMods]);
+  }, [attacker, defender, gameType, teraEnabled, conditions, attackerMods, defenderMods]);
 
   // Feature the highest-damage move by default; let the user pick another.
   const defaultFeature = useMemo(() => {
