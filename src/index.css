@@ -1,7 +1,7 @@
 :root {
-  /* The UI is a light design; lock the scheme so dark-mode browsers don't
-     invert form-control text to white (which vanished on the light panels). */
-  color-scheme: light;
+  /* Dark theme: tell the browser so native controls (scrollbars, select
+     popups, spinners) render dark to match. */
+  color-scheme: dark;
 }
 body {
   margin: 0;
