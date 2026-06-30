@@ -39,6 +39,22 @@ describe('engine: known damage calcs', () => {
   });
 });
 
+describe('multi-hit moves', () => {
+  it('combines per-hit rolls into a valid range and % (Dragon Darts, 2 hits)', () => {
+    const r = runCalc(
+      createPokemon('Dragapult', { evs: { spa: 252 }, nature: 'Timid' }),
+      garchomp(),
+      createMove('Dragon Darts'),
+      vgcField(),
+    );
+    expect(r.range[0]).toBeGreaterThan(0);
+    expect(r.range[1]).toBeGreaterThanOrEqual(r.range[0]);
+    expect(Number.isFinite(r.percent[0])).toBe(true);
+    expect(Number.isFinite(r.percent[1])).toBe(true);
+    expect(r.desc).toContain('2 hits');
+  });
+});
+
 describe('terastallization', () => {
   it('passing teraType flags the Pokémon as Tera and boosts matching-type STAB', () => {
     const target = () => createPokemon('Garchomp', { evs: { hp: 252 } });

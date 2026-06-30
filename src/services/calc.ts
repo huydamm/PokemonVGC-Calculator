@@ -57,9 +57,9 @@ export function createMove(name: string, generation: Generation = gen): Move {
 }
 
 export type DamageResult = {
-  /** Sorted 16-roll array (or single number for fixed-damage moves). */
-  damage: number | number[];
-  /** min and max raw damage. */
+  /** Raw damage: a number, a 16-roll array, or per-hit arrays for multi-hit moves. */
+  damage: number | number[] | number[][];
+  /** combined min and max raw damage (correct across multi-hit moves). */
   range: [number, number];
   /** min and max as % of defender max HP. */
   percent: [number, number];
@@ -70,11 +70,6 @@ export type DamageResult = {
   ko: { n: number; chance: number | undefined; text: string };
 };
 
-function rollRange(damage: number | number[]): [number, number] {
-  if (typeof damage === 'number') return [damage, damage];
-  return [damage[0], damage[damage.length - 1]];
-}
-
 /** Run a single calc against the shared gen and normalise the result. */
 export function runCalc(
   attacker: Pokemon,
@@ -84,8 +79,10 @@ export function runCalc(
   generation: Generation = gen,
 ): DamageResult {
   const result: Result = calculate(generation as never, attacker, defender, move, field);
-  const damage = result.damage as number | number[];
-  const range = rollRange(damage);
+  const damage = result.damage as number | number[] | number[][];
+  // result.range() returns the correct combined [min, max] for every damage
+  // shape — including multi-hit moves whose damage is a number[][] (per hit).
+  const range = result.range();
   const maxHP = defender.maxHP();
   const pct = (n: number): number => Math.round((n / maxHP) * 1000) / 10;
   let ko = { n: 0, chance: undefined as number | undefined, text: '' };
