@@ -131,6 +131,14 @@ export function searchSpecies(query: string, limit = 40): SpeciesEntry[] {
   return [...starts, ...contains].slice(0, limit);
 }
 
+/** All nature names, built once, for the manual spread editor. */
+let natureList: string[] | null = null;
+export function natures(): string[] {
+  if (natureList) return natureList;
+  natureList = [...gen.natures].map((n) => n.name).sort();
+  return natureList;
+}
+
 export interface FormeOption {
   name: string;
   label: string;

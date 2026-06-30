@@ -146,6 +146,56 @@ textarea {
   color: #86198f;
 }
 
+.spread-details {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+}
+.spread-details summary {
+  cursor: pointer;
+  color: var(--accent);
+  user-select: none;
+}
+.spread-editor {
+  margin-top: 0.5rem;
+}
+.spread-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+.spread-total {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.spread-total.over {
+  color: #c0392b;
+  font-weight: 700;
+}
+.spread-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+.spread-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.spread-stat input {
+  width: 100%;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
 .roster {
   display: flex;
   flex-direction: column;

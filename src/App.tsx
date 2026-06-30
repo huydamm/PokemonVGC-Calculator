@@ -28,11 +28,13 @@ import {
   discoverFormats,
   resolveFormat,
   type ResolvedFormat,
+  type FormatDef,
 } from './services/formats';
 import { getCommonSet, suggestedToSet, type SuggestedSet } from './services/sets';
 import { RosterCard } from './components/RosterCard';
 import { OpponentPicker } from './components/OpponentPicker';
 import { OpponentEditor } from './components/OpponentEditor';
+import { SpreadEditor } from './components/SpreadEditor';
 import './app.css';
 
 type SlotId = 'attacker' | 'defender';
@@ -78,7 +80,7 @@ function Slot({
   label,
   assigned,
   loading,
-  megasEnabled,
+  format,
   tera,
   onClear,
   onPick,
@@ -90,7 +92,7 @@ function Slot({
   label: string;
   assigned?: Assigned;
   loading: boolean;
-  megasEnabled: boolean;
+  format: FormatDef;
   tera: boolean;
   onClear: () => void;
   onPick: (species: string) => void;
@@ -99,7 +101,7 @@ function Slot({
   onToggleTera: (v: boolean) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
-  const formes = megasEnabled && assigned ? formeOptions(assigned.mon.speciesName) : [];
+  const formes = format.megasEnabled && assigned ? formeOptions(assigned.mon.speciesName) : [];
   return (
     <div ref={setNodeRef} className={`slot${isOver ? ' over' : ''}${assigned ? ' filled' : ''}`}>
       <div className="slot-head">
@@ -146,6 +148,10 @@ function Slot({
               <OpponentEditor set={assigned.mon.set} suggestion={assigned.suggestion} onChange={onEdit} />
             </>
           )}
+          <details className="spread-details">
+            <summary>Edit spread manually ({format.statSystem.unit})</summary>
+            <SpreadEditor set={assigned.mon.set} format={format} onChange={onEdit} />
+          </details>
         </>
       )}
 
@@ -335,7 +341,7 @@ export default function App() {
                 label="Attacker"
                 assigned={attacker ?? undefined}
                 loading={loading === 'attacker'}
-                megasEnabled={format.megasEnabled}
+                format={format}
                 tera={attackerMods.tera}
                 onClear={() => setAttacker(null)}
                 onPick={(s) => pickOpponent('attacker', s)}
@@ -357,7 +363,7 @@ export default function App() {
                 label="Defender"
                 assigned={defender ?? undefined}
                 loading={loading === 'defender'}
-                megasEnabled={format.megasEnabled}
+                format={format}
                 tera={defenderMods.tera}
                 onClear={() => setDefender(null)}
                 onPick={(s) => pickOpponent('defender', s)}

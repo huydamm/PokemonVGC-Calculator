@@ -10,6 +10,23 @@
  */
 export type GameType = 'Singles' | 'Doubles';
 
+/**
+ * How a format invests stats.
+ * - EV: classic EVs (0-252/stat, 508 total); 1 display unit = 1 EV.
+ * - SP: Pokémon Champions Stat Points (0-32/stat, 66 total); 1 SP = +1 stat.
+ *   Champions runs at Lv 50 where 8 EVs = +1 stat, so we store 1 SP as 8 EVs
+ *   for the (EV-based) engine; `evPerUnit` is that conversion factor.
+ */
+export interface StatSystem {
+  unit: 'EV' | 'SP';
+  perStatMax: number;
+  totalMax: number;
+  evPerUnit: number;
+}
+
+export const EV_SYSTEM: StatSystem = { unit: 'EV', perStatMax: 252, totalMax: 508, evPerUnit: 1 };
+export const SP_SYSTEM: StatSystem = { unit: 'SP', perStatMax: 32, totalMax: 66, evPerUnit: 8 };
+
 export interface FormatDef {
   id: string;
   label: string;
@@ -17,6 +34,7 @@ export interface FormatDef {
   gameType: GameType;
   level: number;
   megasEnabled: boolean;
+  statSystem: StatSystem;
   /** data.pkmn.cc stats ids to try, newest/most-specific first. */
   statsCandidates: string[];
   /** data.pkmn.cc sets ids to try, newest/most-specific first. */
@@ -32,6 +50,7 @@ export const FORMATS: FormatDef[] = [
     gameType: 'Singles',
     level: 100,
     megasEnabled: false,
+    statSystem: EV_SYSTEM,
     statsCandidates: ['gen9ou'],
     setsCandidates: ['gen9ou'],
   },
@@ -42,7 +61,8 @@ export const FORMATS: FormatDef[] = [
     gameType: 'Doubles',
     level: 50,
     megasEnabled: true,
-    // Champions data is not published yet — fall back to the newest VGC usage.
+    statSystem: SP_SYSTEM,
+    // Champions data is not published yet; fall back to the newest VGC usage.
     statsCandidates: ['gen9championsvgc2026regmb', 'gen9championsvgc2026regma', 'gen9vgc2026', 'gen9vgc2025'],
     setsCandidates: ['gen9championsvgc2026regmb', 'gen9vgc2025', 'gen9vgc2024'],
   },
@@ -53,6 +73,7 @@ export const FORMATS: FormatDef[] = [
     gameType: 'Doubles',
     level: 50,
     megasEnabled: false,
+    statSystem: EV_SYSTEM,
     statsCandidates: ['gen9vgc2026', 'gen9vgc2025', 'gen9vgc2024'],
     setsCandidates: ['gen9vgc2025', 'gen9vgc2024'],
   },

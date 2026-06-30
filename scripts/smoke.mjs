@@ -121,6 +121,8 @@ async function main() {
   );
 
   if (process.env.SHOT) {
+    await run(`document.querySelectorAll('details').forEach(d=>d.open=true)`);
+    await sleep(300);
     const shot = await cdp(browserWs, 'Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }, sessionId);
     mkdirSync(dirname(process.env.SHOT), { recursive: true });
     writeFileSync(process.env.SHOT, Buffer.from(shot.data, 'base64'));

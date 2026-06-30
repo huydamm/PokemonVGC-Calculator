@@ -49,6 +49,8 @@ crits, Tera and Mega), **plus** the parts Showdown makes you do by hand:
   Pokémon into the attacker/defender slots instead of retyping them.
 - **One-click Tera and Mega.** Terastallize either side with a toggle, or switch
   Mega formes from a dropdown in Champions.
+- **Edit any spread by hand.** Adjust EVs and nature directly for quick what-ifs.
+  Champions uses its Stat Point system (0 to 32 per stat, 66 total) instead of EVs.
 - **Pick your format.** Gen 9 OU, Pokémon Champions, or VGC 2026. Game type,
   level, and legal Megas adjust automatically.
 
@@ -165,6 +167,10 @@ drives the real UI in headless Chrome and fails on any console error.
   carry no `spritenum` and Showdown's individual item PNGs are inconsistent, so
   faithful icons would require an additional sprite dependency. Pokémon sprites
   are full images.
+- **Champions Stat Points** run on the standard EV-based engine by mapping 1 SP
+  to 8 EVs, which is exact at Level 50 (where 8 EVs add 1 stat point). The one
+  edge case is a maxed 32-SP stat, which lands 1 point low because the engine
+  caps EVs at 252.
 
 ## License
 
