@@ -1,4 +1,4 @@
-import { SUBSTITUTE_SPRITE, typeColor } from '../services/sprites';
+import { SUBSTITUTE_SPRITE, typeColor, itemIconStyle } from '../services/sprites';
 import type { RosterMon } from '../services/team';
 import type { StatsTable } from '@pkmn/data';
 
@@ -58,7 +58,12 @@ export function RosterCard({ mon, compact, onAssign }: RosterCardProps) {
         </div>
         {!compact && (
           <div className="card-meta">
-            {mon.set.item && <span>@ {mon.set.item}</span>}
+            {mon.set.item && (
+              <span className="card-item">
+                {itemIconStyle(mon.set.item) && <span className="item-icon" style={itemIconStyle(mon.set.item)!} aria-hidden />}
+                {mon.set.item}
+              </span>
+            )}
             {mon.set.ability && <span>· {mon.set.ability}</span>}
             {mon.set.nature && <span>· {mon.set.nature}</span>}
             {evs && <span className="card-evs">· {evs}</span>}

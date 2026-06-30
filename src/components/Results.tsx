@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { createPokemon, createMove, runCalc, buildField, withCrit, type DamageResult } from '../services/calc';
 import { setToPokemonOptions, type RosterMon } from '../services/team';
 import type { Conditions, Mods } from '../services/conditions';
+import { Heatmap } from './Heatmap';
 
 interface MoveResult {
   name: string;
@@ -90,6 +91,19 @@ export function Results({
             {koText(featuredRow.r) || '—'}
           </div>
           <code className="featured-desc">{featuredRow.r.desc}</code>
+          <details className="heatmap-details">
+            <summary>Bulk heatmap — does the defender survive?</summary>
+            <Heatmap
+              attacker={attacker}
+              defender={defender}
+              moveName={featuredRow.name}
+              gameType={gameType}
+              teraEnabled={teraEnabled}
+              conditions={conditions}
+              attackerMods={attackerMods}
+              defenderMods={defenderMods}
+            />
+          </details>
         </div>
       )}
 

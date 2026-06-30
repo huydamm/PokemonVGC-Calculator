@@ -12,6 +12,8 @@ slot, and the other side fills itself in with the set people *actually* run. Les
 data entry, more time spent reading the rolls that matter, all on the same
 engine that powers the official Showdown calculator.
 
+### [▶ Live demo](https://huydamm.github.io/PokemonVGC-Calculator/)
+
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
@@ -51,6 +53,8 @@ crits, Tera and Mega), **plus** the parts Showdown makes you do by hand:
   Mega formes from a dropdown in Champions.
 - **Edit any spread by hand.** Adjust EVs and nature directly for quick what-ifs.
   Champions uses its Stat Point system (0 to 32 per stat, 66 total) instead of EVs.
+- **Bulk heatmap.** For the featured move, a colour-coded grid shows how much HP
+  and defensive investment the defender needs to survive the hit.
 - **Pick your format.** Gen 9 OU, Pokémon Champions, or VGC 2026. Game type,
   level, and legal Megas adjust automatically.
 
@@ -105,6 +109,7 @@ many-small-panels UI; `@dnd-kit` provides drag-and-drop with a keyboard fallback
 | Dex / forme data (single source) | [`@pkmn/dex`](https://github.com/pkmn/ps) + `@pkmn/data` | `src/services/data.ts` |
 | Team-paste parsing | [`@pkmn/sets`](https://github.com/pkmn/ps) | `src/services/team.ts` |
 | Opponent sets + usage stats | [`@pkmn/smogon`](https://github.com/pkmn/smogon) | `src/services/sets.ts` |
+| Pokémon sprites + item icons | [`@pkmn/img`](https://github.com/pkmn/img) | `src/services/sprites.ts` |
 | Format discovery (data.pkmn.cc) | native `fetch` | `src/services/formats.ts` |
 
 ## Architecture
@@ -163,10 +168,6 @@ drives the real UI in headless Chrome and fails on any console error.
 - **Champions usage data isn't published on data.pkmn.cc yet**, so opponent
   auto-fill for Champions falls back to the newest VGC usage (`gen9vgc2026`
   stats / `gen9vgc2025` sets) with a surfaced note. Gen 9 OU has full live data.
-- **Item icons** are rendered as text chips rather than images: `@pkmn/dex` items
-  carry no `spritenum` and Showdown's individual item PNGs are inconsistent, so
-  faithful icons would require an additional sprite dependency. Pokémon sprites
-  are full images.
 - **Champions Stat Points** run on the standard EV-based engine by mapping 1 SP
   to 8 EVs, which is exact at Level 50 (where 8 EVs add 1 stat point). The one
   edge case is a maxed 32-SP stat, which lands 1 point low because the engine

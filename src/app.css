@@ -242,7 +242,17 @@ textarea {
   color: var(--muted);
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.3rem;
+}
+.card-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+.item-icon {
+  flex: none;
+  margin-right: -2px;
 }
 .chip {
   display: inline-block;
@@ -462,6 +472,49 @@ textarea {
 }
 .moves .ko {
   color: var(--muted);
+}
+
+/* ---- Bulk heatmap ---- */
+.heatmap-details {
+  margin-top: 0.6rem;
+}
+.heatmap-details summary {
+  cursor: pointer;
+  color: var(--accent-2);
+  font-weight: 600;
+  font-size: 0.82rem;
+  user-select: none;
+}
+.heatmap-note {
+  font-size: 0.76rem;
+  color: var(--muted);
+  margin: 0.5rem 0;
+}
+.heatmap-table {
+  border-collapse: separate;
+  border-spacing: 3px;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+}
+.heatmap-table th {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.35rem;
+  text-align: center;
+}
+.heatmap-table thead th:first-child {
+  text-align: right;
+  white-space: nowrap;
+}
+.heatmap-table td {
+  width: 3rem;
+  text-align: center;
+  padding: 0.4rem 0.3rem;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .src-note {
