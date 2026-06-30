@@ -2,11 +2,15 @@
 
 # Pokémon Damage Calculator
 
-**A fast, paste-driven damage calculator for Gen 9 OU and Pokémon Champions.**
+**A faster way to run damage numbers for Gen 9 OU and Pokémon Champions.**
 
-Paste your team, drag a Pokémon into a slot, and the other side auto-fills with
-the most common competitive set — powered by the same engine behind the official
-Pokémon Showdown calculator.
+If you've used the Pokémon Showdown calculator, you know the grind: every time
+you want to check a matchup you re-type the opponent's spread, ability, item, and
+moves by hand — guessing the set you're up against. I got tired of that. So this
+calculator does the busywork for you: paste your team once, drag a Pokémon into a
+slot, and the other side fills itself in with the set people *actually* run. Less
+data entry, more time spent reading the rolls that matter — all on the same
+engine that powers the official Showdown calculator.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
@@ -30,30 +34,27 @@ Pokémon Showdown calculator.
 - [Mega Evolution](#mega-evolution)
 - [Testing](#testing)
 - [Known Limitations](#known-limitations)
+- [License](#license)
 
 ## Features
 
-- **📋 Paste → roster cards.** Paste a standard Showdown team export and get
-  cards with sprite, forme, types, item, ability, nature, and EV spread.
-  Malformed input produces inline errors — it never crashes.
-- **🎯 Drag-to-assign.** Drag any team Pokémon into the **Attacker** or
-  **Defender** slot (`@dnd-kit`), with ⚔ / 🛡 click-to-assign for mobile and
-  accessibility, re-drag-to-swap, and a one-click ⇄ swap.
-- **🔎 Opponent search + auto common-set.** Fuzzy-search any Pokémon; on select,
-  its most common ability, item, Tera type, spread, and moves load from usage
-  statistics, each swappable via **usage-% dropdowns**.
-- **🗂️ Version selector.** Switch between **Gen 9 OU** (Singles, Lv 100),
-  **Pokémon Champions** (Doubles, Lv 50, Megas) and **VGC 2026**. Data sources
-  are discovered from data.pkmn.cc at runtime, with a graceful fallback chain.
-- **🔱 Mega Evolution.** A per-slot forme dropdown (Champions) that applies
-  post-Mega stats and force-overwrites the ability, plus a non-blocking
-  one-Mega-per-team warning.
-- **🌦️ Battle conditions.** Weather, terrain, gravity, the four Ruin abilities,
-  per-side screens / Tailwind / Helping Hand / Friend Guard, per-Pokémon stat
-  stages (−6…+6) and status, and a critical-hit toggle — all wired into the calc.
-- **📊 Results.** A featured move with its roll range, % of defender HP, the
-  Showdown description string, and the KO summary (guaranteed vs. probability),
-  alongside an at-a-glance table of every move.
+Everything you already expect from a damage calculator — every move's roll range
+and % of HP, KO chances, weather and terrain, screens, stat stages, status,
+crits, Tera and Mega — **plus** the parts Showdown makes you do by hand:
+
+- **Auto-fills the opponent.** Search any Pokémon and it loads the set people
+  actually run (spread, ability, item, Tera, moves) from real usage stats — every
+  choice still swappable from a dropdown labelled with its usage %.
+- **Paste your team, drag to calc.** Paste a Showdown export once and drag your
+  Pokémon into the attacker/defender slots instead of retyping them.
+- **One-click Tera and Mega.** Terastallize either side with a toggle; switch
+  Mega formes from a dropdown in Champions.
+- **Pick your format.** Gen 9 OU, Pokémon Champions, or VGC 2026 — game type,
+  level, and legal Megas adjust automatically.
+
+> **Example:** paste your team, drag in **Incineroar** as the attacker, type
+> *"Garchomp"* for the defender — it instantly loads Garchomp's most-used
+> spread/item/moves and shows what each of Incineroar's moves does to it.
 
 ## Quick Start
 
@@ -164,6 +165,10 @@ drives the real UI in headless Chrome and fails on any console error.
   carry no `spritenum` and Showdown's individual item PNGs are inconsistent, so
   faithful icons would require an additional sprite dependency. Pokémon sprites
   are full images.
+
+## License
+
+Released under the [MIT License](LICENSE).
 
 ---
 
