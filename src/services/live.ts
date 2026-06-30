@@ -18,6 +18,7 @@ import type { BattleMon, BattleSnapshot } from './battle';
 export interface MyPokemon {
   details: string; // "Tyranitar, M"
   stats: Omit<StatsTable, 'hp'>; // exact final stats, no HP
+  maxHP?: number; // exact max HP, parsed from the request `condition` ("393/393")
   moves: string[]; // move ids, e.g. 'rockslide'
   item?: string;
   ability?: string;
@@ -197,4 +198,110 @@ export async function computeLive(
     }
   }
   return { incoming, outgoing };
+}
+
+// ---- arbitrary "what-if" calc (the run_calc agent tool) --------------------
+
+export interface HypoRequest {
+  attacker: string;
+  defender: string;
+  move: string;
+  /** Which side the attacker is on, so we use exact (mine) vs inferred (theirs) stats. */
+  attackerSide: 'mine' | 'theirs';
+  teraAttacker?: string;
+  attackerBoosts?: Partial<StatsTable>;
+  defenderBoosts?: Partial<StatsTable>;
+}
+export interface HypoResult {
+  attacker: string;
+  defender: string;
+  move: string;
+  percent: [number, number];
+  ko: string;
+  /** true when the opponent (inferred set) is involved on either side. */
+  estimated: boolean;
+}
+
+const battleLevel = (s: BattleSnapshot): number =>
+  s.mine.find(Boolean)?.level ?? s.theirs.find(Boolean)?.level ?? (s.field.gameType === 'Doubles' ? 50 : 100);
+
+/** Your mon by species at exact stats (works for bench mons too). */
+function buildMineSpecies(
+  species: string,
+  level: number,
+  myPokemon: MyPokemon[],
+  o: { boosts?: Partial<StatsTable>; tera?: string },
+): Pokemon {
+  const me = myPokemon.find((p) => toID(speciesOf(p.details)) === toID(species));
+  const p = createPokemon(species, {
+    level,
+    ability: me?.ability,
+    item: me?.item,
+    teraType: o.tera,
+    moves: me?.moves ?? [],
+    boosts: o.boosts ?? {},
+  });
+  if (me?.stats) {
+    const hp = me.maxHP ?? p.maxHP();
+    p.rawStats = { hp, ...me.stats };
+    p.stats = { hp, ...me.stats };
+  }
+  return p;
+}
+
+/** Opponent mon by species from its inferred common set. */
+async function buildOppSpecies(
+  species: string,
+  level: number,
+  sets: SetService,
+  resolved: ResolvedFormat,
+  o: { boosts?: Partial<StatsTable>; tera?: string },
+): Promise<Pokemon> {
+  const set = await sets.getCommonSet(species, resolved);
+  return createPokemon(species, {
+    level,
+    ability: set.ability,
+    item: set.item,
+    nature: set.nature,
+    evs: set.evs,
+    teraType: o.tera,
+    moves: set.moves,
+    boosts: o.boosts ?? {},
+  });
+}
+
+/** Run one exact calc for any matchup the agent asks about (bench, Tera, boosts). */
+export async function runHypothetical(
+  req: HypoRequest,
+  snapshot: BattleSnapshot,
+  myPokemon: MyPokemon[],
+  sets: SetService,
+  resolved: ResolvedFormat,
+): Promise<HypoResult | { error: string }> {
+  const level = battleLevel(snapshot);
+  const defSide = req.attackerSide === 'mine' ? 'theirs' : 'mine';
+  const mkMine = (sp: string, boosts?: Partial<StatsTable>, tera?: string) =>
+    buildMineSpecies(sp, level, myPokemon, { boosts, tera });
+  const mkOpp = (sp: string, boosts?: Partial<StatsTable>, tera?: string) =>
+    buildOppSpecies(sp, level, sets, resolved, { boosts, tera });
+  try {
+    const attacker =
+      req.attackerSide === 'mine'
+        ? mkMine(req.attacker, req.attackerBoosts, req.teraAttacker)
+        : await mkOpp(req.attacker, req.attackerBoosts, req.teraAttacker);
+    const defender =
+      defSide === 'mine' ? mkMine(req.defender, req.defenderBoosts) : await mkOpp(req.defender, req.defenderBoosts);
+    const field = buildField(snapshot.field.gameType, conditionsFor(snapshot.field, req.attackerSide === 'mine'));
+    const r = runCalc(attacker, defender, createMove(req.move), field);
+    return {
+      attacker: req.attacker,
+      defender: req.defender,
+      move: req.move,
+      percent: r.percent,
+      ko: r.ko.text,
+      estimated: req.attackerSide === 'theirs' || defSide === 'theirs',
+    };
+  } catch (e) {
+    return { error: `Could not calc ${req.move}: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }

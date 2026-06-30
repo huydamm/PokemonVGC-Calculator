@@ -6,7 +6,7 @@
  * Calc + network live here (not in MAIN) so fetch to data.pkmn.cc uses the
  * extension's host_permissions and bypasses Showdown's page CSP.
  */
-import { computeLive, type MyPokemon, type LiveResult } from '../src/services/live';
+import { computeLive, runHypothetical, type MyPokemon, type LiveResult, type HypoRequest } from '../src/services/live';
 import type { BattleSnapshot } from '../src/services/battle';
 import { setService } from '../src/services/sets';
 import { resolveFormat, type FormatDef, type ResolvedFormat, EV_SYSTEM } from '../src/services/formats';
@@ -27,7 +27,15 @@ Object.assign(header.style, { padding: '8px 12px', cursor: 'pointer', userSelect
 header.innerHTML = '<b>VGC Live Calc</b> <span style="opacity:.5;float:right">[hide]</span>';
 const body = document.createElement('div');
 Object.assign(body.style, { padding: '8px 12px' });
-body.innerHTML = '<div style="opacity:.6">waiting for a battle…</div>';
+// Board is re-rendered every snapshot; the ask area below it persists.
+const boardDiv = document.createElement('div');
+boardDiv.innerHTML = '<div style="opacity:.6">waiting for a battle…</div>';
+const askDiv = document.createElement('div');
+Object.assign(askDiv.style, { marginTop: '10px', borderTop: '1px solid #2a2d33', paddingTop: '8px' });
+askDiv.innerHTML = `
+  <input id="vgc-q" placeholder="ask… (e.g. what KOs their lead)" style="width:100%;box-sizing:border-box;padding:6px;background:#12141a;color:#e6e6e6;border:1px solid #3a3d44;border-radius:6px;font:inherit" />
+  <div id="vgc-a" style="margin-top:6px;color:#cfe;white-space:pre-wrap"></div>`;
+body.append(boardDiv, askDiv);
 panel.append(header, body);
 header.onclick = () => {
   const hidden = body.style.display === 'none';
@@ -96,7 +104,7 @@ function render(snapshot: BattleSnapshot, result?: LiveResult): void {
       }`
     : '<div style="opacity:.5;margin-top:10px">calculating…</div>';
 
-  body.innerHTML = `
+  boardDiv.innerHTML = `
     <div style="opacity:.5">turn ${snapshot.turn} · ${field}</div>
     <div style="color:#7fd1ff;margin-top:8px">YOUR SIDE</div>${snapshot.mine.map(monLine).join('')}
     <div style="color:#ff9d7f;margin-top:6px">OPPONENT</div>${snapshot.theirs.map(monLine).join('')}
@@ -105,13 +113,22 @@ function render(snapshot: BattleSnapshot, result?: LiveResult): void {
 
 // ---- snapshot handling -----------------------------------------------------
 let seq = 0;
+let latestSnapshot: BattleSnapshot | null = null;
+let latestResult: LiveResult | null = null;
+let latestMyPokemon: MyPokemon[] = [];
+
 async function onSnapshot(snapshot: BattleSnapshot, myPokemon: MyPokemon[]): Promise<void> {
+  latestSnapshot = snapshot;
+  latestMyPokemon = myPokemon;
   render(snapshot); // board first, instantly
   const mySeq = ++seq;
   try {
     const resolved = await resolveLiveFormat(snapshot);
     const result = await computeLive(snapshot, myPokemon, setService, resolved);
-    if (mySeq === seq) render(snapshot, result); // ignore if a newer snapshot arrived
+    if (mySeq === seq) {
+      latestResult = result;
+      render(snapshot, result); // ignore if a newer snapshot arrived
+    }
   } catch (e) {
     console.error('[vgc-calc] calc failed', e);
   }
@@ -121,4 +138,124 @@ window.addEventListener('message', (ev) => {
   const d = ev.data;
   if (!d || d.source !== TAG || !d.snapshot) return;
   void onSnapshot(d.snapshot as BattleSnapshot, (d.myPokemon ?? []) as MyPokemon[]);
+});
+
+// ---- ask the agent ---------------------------------------------------------
+/** Your full team (all 6, exact) from the |request| data — known even on the bench. */
+function formatMyTeam(team: MyPokemon[]): string[] {
+  return team.map((p) => {
+    const species = p.details.split(',')[0].trim();
+    const st = p.stats ? `atk ${p.stats.atk}/def ${p.stats.def}/spa ${p.stats.spa}/spd ${p.stats.spd}/spe ${p.stats.spe}` : '';
+    const bits = [st, p.item, p.ability, p.teraType && `Tera ${p.teraType}`, p.moves?.length && `moves: ${p.moves.join('/')}`]
+      .filter(Boolean)
+      .join('; ');
+    return `- ${species}${bits ? ` (${bits})` : ''}`;
+  });
+}
+
+/** Compact text of the board + exact calc table for the LLM context. */
+function formatContext(s: BattleSnapshot, r: LiveResult | null, myTeam: MyPokemon[]): string {
+  const f = s.field;
+  const field = [f.weather, f.terrain && `${f.terrain} terrain`, f.trickRoom && 'Trick Room', f.gravity && 'Gravity',
+    f.mySide.tailwind && 'your Tailwind', f.theirSide.tailwind && 'their Tailwind'].filter(Boolean).join(', ') || 'none';
+  const mon = (m: BattleSnapshot['mine'][number]) => {
+    if (!m) return null;
+    const hp = m.known && m.hp != null ? `${m.hpPercent}% (${m.hp}/${m.maxHP})` : `${m.hpPercent}%`;
+    const extra = [m.status && m.status, Object.keys(m.boosts).length && JSON.stringify(m.boosts),
+      m.terastallized && `Tera ${m.teraType}`, m.item, m.ability,
+      m.revealedMoves.length && `moves: ${m.revealedMoves.join('/')}`].filter(Boolean).join(', ');
+    return `- ${m.species} ${hp}${extra ? `; ${extra}` : ''}`;
+  };
+  const line = (l: LiveResult['incoming'][number]) =>
+    `- ${l.estimated ? '[est] ' : ''}${l.attacker} ${l.move} -> ${l.defender}: ${l.percent[0]}-${l.percent[1]}% (${l.ko})`;
+  return [
+    `Turn ${s.turn}, ${f.gameType}, format ${s.tier}. Field: ${field}.`,
+    'Your active:', ...s.mine.map(mon).filter(Boolean),
+    'Opponent active:', ...s.theirs.map(mon).filter(Boolean),
+    myTeam.length ? 'Your full team (exact, includes bench):' : '',
+    ...formatMyTeam(myTeam),
+    s.theirTeam.length ? `Opponent team (from preview): ${s.theirTeam.join(', ')}.` : '',
+    r ? 'Damage table for the active matchup (exact):' : '',
+    ...(r ? ['Threats to you:', ...r.incoming.map(line), 'Your damage:', ...r.outgoing.map(line)] : []),
+  ].filter(Boolean).join('\n');
+}
+
+const MODEL = 'claude-haiku-4-5';
+const SYSTEM = `You are a Pokemon VGC/Showdown live-battle assistant, speaking to the player mid-game.
+You are given the current battle state and a PRECOMPUTED damage table from the real Showdown engine
+for the ACTIVE matchup — read those numbers, never invent them. For any OTHER matchup (a bench mon, a
+Tera, a stat boost, a hypothetical switch-in), call the run_calc tool to get an exact number; do not
+estimate it yourself. Numbers marked [est] use an inferred opponent set (item/ability not yet revealed).
+Answer in 1-2 short spoken sentences like a teammate calling a play: name the move, the roll, the KO.`;
+
+const RUN_CALC_TOOL = {
+  name: 'run_calc',
+  description:
+    'Run an exact Showdown damage calc for ANY single matchup not already in the active damage table: bench Pokemon, a different move, an applied Tera type, or stat boosts. Returns the damage % range and KO chance.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      attacker: { type: 'string', description: 'attacking Pokemon species, e.g. "Garchomp"' },
+      defender: { type: 'string', description: 'defending Pokemon species' },
+      move: { type: 'string', description: 'move name, e.g. "Earth Power"' },
+      attacker_side: { type: 'string', enum: ['mine', 'theirs'], description: 'whose Pokemon is the attacker — "mine" uses your exact set, "theirs" the inferred opponent set' },
+      tera_attacker: { type: 'string', description: 'optional Tera type to terastallize the attacker' },
+      attacker_boosts: { type: 'object', description: 'optional stat stages on the attacker, e.g. {"atk":2}' },
+      defender_boosts: { type: 'object', description: 'optional stat stages on the defender, e.g. {"def":1}' },
+    },
+    required: ['attacker', 'defender', 'move', 'attacker_side'],
+  },
+};
+
+type ToolInput = {
+  attacker: string; defender: string; move: string; attacker_side: 'mine' | 'theirs';
+  tera_attacker?: string; attacker_boosts?: Record<string, number>; defender_boosts?: Record<string, number>;
+};
+const toHypo = (i: ToolInput): HypoRequest => ({
+  attacker: i.attacker, defender: i.defender, move: i.move, attackerSide: i.attacker_side,
+  teraAttacker: i.tera_attacker, attackerBoosts: i.attacker_boosts, defenderBoosts: i.defender_boosts,
+});
+
+const callLLM = (body: unknown): Promise<{ message?: any; error?: string }> =>
+  new Promise((resolve) =>
+    chrome.runtime.sendMessage({ type: 'vgc-llm', body }, (resp) =>
+      resolve(chrome.runtime.lastError ? { error: chrome.runtime.lastError.message } : resp),
+    ),
+  );
+
+async function askAgent(question: string): Promise<string> {
+  if (!latestSnapshot) return 'No battle loaded yet.';
+  const resolved = await resolveLiveFormat(latestSnapshot);
+  const context = formatContext(latestSnapshot, latestResult, latestMyPokemon);
+  const messages: any[] = [{ role: 'user', content: `${context}\n\nPlayer asks: ${question}` }];
+
+  for (let round = 0; round < 4; round++) {
+    const resp = await callLLM({ model: MODEL, max_tokens: 500, system: SYSTEM, tools: [RUN_CALC_TOOL], messages });
+    if (resp.error) return `Error: ${resp.error}`;
+    const msg = resp.message;
+    messages.push({ role: 'assistant', content: msg.content });
+
+    if (msg.stop_reason === 'tool_use') {
+      const results = [];
+      for (const block of msg.content) {
+        if (block.type !== 'tool_use') continue;
+        const out = await runHypothetical(toHypo(block.input as ToolInput), latestSnapshot, latestMyPokemon, setService, resolved);
+        results.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(out) });
+      }
+      messages.push({ role: 'user', content: results });
+      continue;
+    }
+    return msg.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join(' ').trim() || '(no answer)';
+  }
+  return 'Stopped after several tool calls — try a more specific question.';
+}
+
+const qInput = askDiv.querySelector('#vgc-q') as HTMLInputElement;
+const aDiv = askDiv.querySelector('#vgc-a') as HTMLDivElement;
+qInput.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const question = qInput.value.trim();
+  if (!question) return;
+  aDiv.textContent = 'thinking…';
+  askAgent(question).then((answer) => (aDiv.textContent = answer));
 });

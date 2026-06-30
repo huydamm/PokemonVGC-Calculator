@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeLive, type MyPokemon } from './live';
+import { computeLive, runHypothetical, type MyPokemon } from './live';
 import type { BattleSnapshot, BattleMon } from './battle';
 import type { SetService, SuggestedSet } from './sets';
 import type { ResolvedFormat } from './formats';
@@ -31,12 +31,15 @@ const snapshot: BattleSnapshot = {
   },
   mine: [mon({ species: 'Incineroar', known: true, hpPercent: 87, maxHP: 394 })],
   theirs: [mon({ species: 'Landorus', hpPercent: 76, boosts: { atk: -1 }, revealedMoves: ['Sandsear Storm'] })],
+  myTeam: ['Incineroar', 'Tyranitar'],
+  theirTeam: ['Landorus', 'Ogerpon-Wellspring'],
 };
 
 const myPokemon: MyPokemon[] = [
   {
     details: 'Incineroar, M',
     stats: { atk: 333, def: 240, spa: 176, spd: 219, spe: 156 },
+    maxHP: 394,
     moves: ['fakeout', 'partingshot', 'flareblitz', 'knockoff'],
     item: 'safetygoggles', ability: 'intimidate', teraType: 'Ghost',
   },
@@ -60,5 +63,18 @@ describe('computeLive', () => {
     expect(out.percent[1]).toBeLessThan(80);
     // Incineroar's best vs a Landorus should be one of its real moves (display names).
     expect(['Fake Out', 'Parting Shot', 'Flare Blitz', 'Knock Off']).toContain(out.move);
+  });
+
+  it('runHypothetical calcs an arbitrary matchup (the run_calc tool)', async () => {
+    const res = await runHypothetical(
+      { attacker: 'Incineroar', defender: 'Landorus', move: 'Flare Blitz', attackerSide: 'mine' },
+      snapshot, myPokemon, fakeSets, resolved,
+    );
+    expect('error' in res).toBe(false);
+    if ('error' in res) return;
+    expect(res.percent[1]).toBeGreaterThan(0);
+    expect(res.percent[1]).toBeLessThan(80); // opponent at battle level 100
+    expect(res.estimated).toBe(true); // defender is the inferred opponent
+    expect(res.ko).toBeTruthy();
   });
 });

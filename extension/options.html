@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>VGC Live Calc — options</title>
+    <style>
+      body { font: 14px/1.5 system-ui, sans-serif; background: #1b1d22; color: #e6e6e6; padding: 24px; max-width: 520px; }
+      h1 { font-size: 16px; }
+      input { width: 100%; padding: 8px; margin: 8px 0; background: #12141a; color: #e6e6e6; border: 1px solid #3a3d44; border-radius: 6px; box-sizing: border-box; }
+      button { padding: 8px 16px; background: #2f6fed; color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
+      .hint { opacity: .6; font-size: 12px; }
+      #status { margin-left: 10px; color: #7fd1ff; }
+    </style>
+  </head>
+  <body>
+    <h1>VGC Live Calc</h1>
+    <p class="hint">Your Anthropic API key is stored locally in this browser and only sent to api.anthropic.com.</p>
+    <input id="key" type="password" placeholder="sk-ant-..." autocomplete="off" />
+    <div>
+      <button id="save">Save</button>
+      <span id="status"></span>
+    </div>
+    <script src="dist/options.js"></script>
+  </body>
+</html>

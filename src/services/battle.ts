@@ -32,6 +32,7 @@ interface SdPokemon {
 }
 interface SdSide {
   active: (SdPokemon | null)[];
+  pokemon?: { speciesForme?: string }[]; // full team (species known from team preview)
   sideConditions?: Record<string, unknown>;
 }
 export interface SdBattle {
@@ -90,6 +91,9 @@ export interface BattleSnapshot {
   /** Active slots (0 = left, 1 = right); null = empty / no mon out. */
   mine: (BattleMon | null)[];
   theirs: (BattleMon | null)[];
+  /** Full team species (known from team preview), both active and benched. */
+  myTeam: string[];
+  theirTeam: string[];
   field: BattleField;
 }
 
@@ -171,12 +175,16 @@ export function mapBattle(b: SdBattle): BattleSnapshot {
   // The viewer's own side has full info; everything else is opponent info.
   const mySide = b.mySide ?? null;
   const theirSide = mySide && b.farSide === mySide ? b.nearSide ?? null : b.farSide ?? null;
+  const team = (s: SdSide | null) =>
+    (s?.pokemon ?? []).map((p) => p.speciesForme).filter((x): x is string => !!x);
   return {
     gen: b.gen,
     tier: b.tier,
     turn: b.turn,
     mine: (mySide?.active ?? []).map((p) => mapMon(p, true)),
     theirs: (theirSide?.active ?? []).map((p) => mapMon(p, false)),
+    myTeam: team(mySide),
+    theirTeam: team(theirSide),
     field: {
       gameType: b.gameType === 'doubles' ? 'Doubles' : 'Singles',
       weather: WEATHER[b.weather] ?? undefined,

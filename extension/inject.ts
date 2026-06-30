@@ -19,9 +19,12 @@ let last = '';
 function plainMy(list: unknown[] | undefined): MyPokemon[] {
   return (list ?? []).map((raw) => {
     const p = raw as Record<string, unknown>;
+    // condition is "cur/max" (e.g. "393/393") or "0 fnt"; pull the max.
+    const max = parseInt(String(p.condition ?? '').split('/')[1] ?? '', 10);
     return {
       details: String(p.details ?? ''),
       stats: p.stats as MyPokemon['stats'],
+      maxHP: Number.isFinite(max) ? max : undefined,
       moves: (p.moves as string[]) ?? [],
       item: (p.item as string) || undefined,
       ability: (p.ability as string) || (p.baseAbility as string) || undefined,
