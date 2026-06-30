@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "VGC Live Calc",
+  "version": "0.1.0",
+  "description": "Live damage-calc overlay for Pokemon Showdown.",
+  "host_permissions": ["https://data.pkmn.cc/*", "https://pkmn.github.io/*"],
+  "content_scripts": [
+    {
+      "matches": ["*://play.pokemonshowdown.com/*"],
+      "js": ["dist/inject.js"],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://play.pokemonshowdown.com/*"],
+      "js": ["dist/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

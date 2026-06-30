@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "prove": "tsx scripts/prove-engine.ts",
     "smoke": "node scripts/smoke.mjs",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "build:ext": "esbuild extension/inject.ts extension/content.ts --bundle --minify --format=iife --target=chrome111 --outdir=extension/dist"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
