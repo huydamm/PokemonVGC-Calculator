@@ -6,10 +6,10 @@
 
 If you've used the Pokémon Showdown calculator, you know the grind: every time
 you want to check a matchup you re-type the opponent's spread, ability, item, and
-moves by hand — guessing the set you're up against. I got tired of that. So this
-calculator does the busywork for you: paste your team once, drag a Pokémon into a
+moves by hand, guessing the set you're up against. I got tired of that. So this
+calculator does the busywork for you. Paste your team once, drag a Pokémon into a
 slot, and the other side fills itself in with the set people *actually* run. Less
-data entry, more time spent reading the rolls that matter — all on the same
+data entry, more time spent reading the rolls that matter, all on the same
 engine that powers the official Showdown calculator.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -38,22 +38,22 @@ engine that powers the official Showdown calculator.
 
 ## Features
 
-Everything you already expect from a damage calculator — every move's roll range
+Everything you already expect from a damage calculator (every move's roll range
 and % of HP, KO chances, weather and terrain, screens, stat stages, status,
-crits, Tera and Mega — **plus** the parts Showdown makes you do by hand:
+crits, Tera and Mega), **plus** the parts Showdown makes you do by hand:
 
 - **Auto-fills the opponent.** Search any Pokémon and it loads the set people
-  actually run (spread, ability, item, Tera, moves) from real usage stats — every
-  choice still swappable from a dropdown labelled with its usage %.
+  actually run (spread, ability, item, Tera, moves) from real usage stats, and
+  every choice is still swappable from a dropdown labelled with its usage %.
 - **Paste your team, drag to calc.** Paste a Showdown export once and drag your
   Pokémon into the attacker/defender slots instead of retyping them.
-- **One-click Tera and Mega.** Terastallize either side with a toggle; switch
+- **One-click Tera and Mega.** Terastallize either side with a toggle, or switch
   Mega formes from a dropdown in Champions.
-- **Pick your format.** Gen 9 OU, Pokémon Champions, or VGC 2026 — game type,
+- **Pick your format.** Gen 9 OU, Pokémon Champions, or VGC 2026. Game type,
   level, and legal Megas adjust automatically.
 
-> **Example:** paste your team, drag in **Incineroar** as the attacker, type
-> *"Garchomp"* for the defender — it instantly loads Garchomp's most-used
+> **Example:** paste your team, drag in **Incineroar** as the attacker, then type
+> *"Garchomp"* for the defender. It instantly loads Garchomp's most-used
 > spread/item/moves and shows what each of Incineroar's moves does to it.
 
 ## Quick Start
@@ -80,7 +80,7 @@ npm run dev      # start the dev server at http://localhost:5173
 
 1. Pick a **version** in the top-right selector (Gen 9 OU, Pokémon Champions, or
    VGC 2026).
-2. Paste a Showdown team export into the textarea — or click **load sample team**.
+2. Paste a Showdown team export into the textarea, or click **load sample team**.
 3. Assign the **Attacker** and **Defender**: drag a roster card into a slot (or
    use the ⚔ / 🛡 buttons), and **search a Pokémon** in the other slot to
    auto-fill its common competitive set.
@@ -94,7 +94,7 @@ npm run dev      # start the dev server at http://localhost:5173
 build that minifies (esbuild) and tree-shakes `@smogon/calc`, whose data tables
 are large. The app imports the engine's `@smogon/calc/dist/adaptable` entry so it
 reads data from a single shared `@pkmn/dex` generation rather than the engine's
-bundled tables — dex data is never shipped twice. React suits the drag-driven,
+bundled tables, so dex data is never shipped twice. React suits the drag-driven,
 many-small-panels UI; `@dnd-kit` provides drag-and-drop with a keyboard fallback.
 
 | Concern | Library | Location |
@@ -130,12 +130,12 @@ Megas are an alternate forme: selecting one feeds the Mega species to the calc,
 which applies post-Mega stats and force-overwrites the ability automatically.
 `@pkmn/data`'s Gen 9 layer hides Megas (they don't exist in Scarlet/Violet), so
 `data.ts` re-admits Mega/Primal formes for Champions, and availability is
-detected from the data layer at runtime — so the calculator lights up new Megas
+detected from the data layer at runtime, so the calculator lights up new Megas
 as the data source adds them.
 
 Verified against live data:
 
-- The newer Champions Megas **are** present and calculable — e.g. Pyroar-Mega
+- The newer Champions Megas **are** present and calculable, e.g. Pyroar-Mega
   (Fire Mane), Glimmora, Baxcalibur, Floette, Dragalge, Eelektross, Scovillain.
 - **Tatsugiri-Mega** and **Annihilape-Mega** are not yet in the data, so the UI
   doesn't offer them and resolution degrades to the base forme.
