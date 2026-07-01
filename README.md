@@ -139,7 +139,7 @@ engine to **live Pokémon Showdown games**. It reads your active battle, shows
 damage both ways in an overlay, and adds an assistant you can ask questions.
 
 <div align="center">
-<img src="docs/overlay.jpg" alt="The VGC Live Calc overlay on a Pokémon Showdown battle, showing threats to your side and your damage with KO chances" width="900" />
+<img src="docs/overlay.png" alt="The VGC Live Calc overlay on a Pokémon Showdown battle: your side and damage on the left, the opponent and their threats on the right, with KO chances" width="900" />
 </div>
 
 - **Reads the live board.** Both active Pokémon, HP, boosts, weather, terrain,
