@@ -17,7 +17,7 @@ const TAG = 'vgc-calc';
 const panel = document.createElement('div');
 panel.id = 'vgc-calc-panel';
 Object.assign(panel.style, {
-  position: 'fixed', top: '8px', right: '8px', zIndex: '99999', width: '320px',
+  position: 'fixed', top: '8px', right: '8px', zIndex: '99999', width: '560px',
   maxHeight: '85vh', overflow: 'auto', background: '#1b1d22', color: '#e6e6e6',
   font: '12px/1.45 ui-monospace, Menlo, Consolas, monospace', border: '1px solid #3a3d44',
   borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,.4)',
@@ -99,19 +99,24 @@ function render(snapshot: BattleSnapshot, result?: LiveResult): void {
     f.mySide.tailwind && 'your TW', f.theirSide.tailwind && 'their TW',
   ].filter(Boolean).join(' · ') || 'no field effects';
 
-  const calc = result
-    ? `<div style="color:#ff9d7f;margin-top:10px">THREATS TO YOU</div>${
-        result.incoming.length ? result.incoming.map(calcLine).join('') : '<div style="opacity:.5">—</div>'
-      }<div style="color:#7fd1ff;margin-top:8px">YOUR DAMAGE</div>${
-        result.outgoing.length ? result.outgoing.map(calcLine).join('') : '<div style="opacity:.5">—</div>'
-      }`
-    : '<div style="opacity:.5;margin-top:10px">calculating…</div>';
+  const lines = (rows: LiveResult['incoming']) =>
+    rows.length ? rows.map(calcLine).join('') : '<div style="opacity:.5">—</div>';
+
+  // Two columns: your stuff on the left, the opponent on the right.
+  const mine = `
+    <div style="color:#7fd1ff">YOUR SIDE</div>${snapshot.mine.map(monLine).join('')}
+    ${result ? `<div style="color:#7fd1ff;margin-top:8px">YOUR DAMAGE</div>${lines(result.outgoing)}` : ''}`;
+  const theirs = `
+    <div style="color:#ff9d7f">OPPONENT</div>${snapshot.theirs.map(monLine).join('')}
+    ${result ? `<div style="color:#ff9d7f;margin-top:8px">THREATS TO YOU</div>${lines(result.incoming)}` : ''}`;
 
   boardDiv.innerHTML = `
     <div style="opacity:.5">turn ${snapshot.turn} · ${field}</div>
-    <div style="color:#7fd1ff;margin-top:8px">YOUR SIDE</div>${snapshot.mine.map(monLine).join('')}
-    <div style="color:#ff9d7f;margin-top:6px">OPPONENT</div>${snapshot.theirs.map(monLine).join('')}
-    ${calc}`;
+    <div style="display:flex;gap:14px;margin-top:8px">
+      <div style="flex:1;min-width:0">${mine}</div>
+      <div style="flex:1;min-width:0;border-left:1px solid #2a2d33;padding-left:14px">${theirs}</div>
+    </div>
+    ${result ? '' : '<div style="opacity:.5;margin-top:10px">calculating…</div>'}`;
 }
 
 // ---- snapshot handling -----------------------------------------------------
