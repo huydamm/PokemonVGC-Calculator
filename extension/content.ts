@@ -33,7 +33,10 @@ boardDiv.innerHTML = '<div style="opacity:.6">waiting for a battle…</div>';
 const askDiv = document.createElement('div');
 Object.assign(askDiv.style, { marginTop: '10px', borderTop: '1px solid #2a2d33', paddingTop: '8px' });
 askDiv.innerHTML = `
-  <input id="vgc-q" placeholder="ask… (e.g. what KOs their lead)" style="width:100%;box-sizing:border-box;padding:6px;background:#12141a;color:#e6e6e6;border:1px solid #3a3d44;border-radius:6px;font:inherit" />
+  <div style="display:flex;gap:6px">
+    <button id="vgc-mic" title="hold-to-talk (click to start/stop)" style="flex:0 0 auto;padding:6px 8px;background:#12141a;color:#e6e6e6;border:1px solid #3a3d44;border-radius:6px;cursor:pointer;font:inherit">🎤</button>
+    <input id="vgc-q" placeholder="ask… or tap the mic" style="flex:1;min-width:0;box-sizing:border-box;padding:6px;background:#12141a;color:#e6e6e6;border:1px solid #3a3d44;border-radius:6px;font:inherit" />
+  </div>
   <div id="vgc-a" style="margin-top:6px;color:#cfe;white-space:pre-wrap"></div>`;
 body.append(boardDiv, askDiv);
 panel.append(header, body);
@@ -252,10 +255,54 @@ async function askAgent(question: string): Promise<string> {
 
 const qInput = askDiv.querySelector('#vgc-q') as HTMLInputElement;
 const aDiv = askDiv.querySelector('#vgc-a') as HTMLDivElement;
-qInput.addEventListener('keydown', (e) => {
-  if (e.key !== 'Enter') return;
-  const question = qInput.value.trim();
+const micBtn = askDiv.querySelector('#vgc-mic') as HTMLButtonElement;
+
+/** Run a question and (for voice) speak the answer back. */
+function submit(question: string, speak: boolean): void {
+  question = question.trim();
   if (!question) return;
   aDiv.textContent = 'thinking…';
-  askAgent(question).then((answer) => (aDiv.textContent = answer));
+  askAgent(question).then((answer) => {
+    aDiv.textContent = answer;
+    if (speak) speakOut(answer);
+  });
+}
+
+function speakOut(text: string): void {
+  try {
+    speechSynthesis.cancel();
+    speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+  } catch {
+    /* no TTS available */
+  }
+}
+
+qInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submit(qInput.value, false); // typed: show, don't speak
+});
+
+// ---- voice (Web Speech, native to Chrome) ----------------------------------
+const SR = (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition
+  ?? (window as unknown as { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
+let recog: any = null;
+let listening = false;
+
+micBtn.addEventListener('click', () => {
+  if (!SR) { aDiv.textContent = 'Voice input is not supported in this browser.'; return; }
+  if (listening) { recog?.stop(); return; }
+  recog = new SR();
+  recog.lang = 'en-US';
+  recog.interimResults = true;
+  recog.continuous = false;
+  listening = true;
+  micBtn.textContent = '🔴';
+  speechSynthesis.cancel(); // don't transcribe our own TTS
+  recog.onresult = (e: any) => {
+    const transcript = Array.from(e.results).map((r: any) => r[0].transcript).join('');
+    qInput.value = transcript;
+    if (e.results[e.results.length - 1].isFinal) submit(transcript, true); // voice: speak the answer
+  };
+  recog.onerror = (e: any) => { aDiv.textContent = `Voice error: ${e.error}`; };
+  recog.onend = () => { listening = false; micBtn.textContent = '🎤'; };
+  recog.start();
 });

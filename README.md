@@ -145,10 +145,13 @@ damage both ways in an overlay, and adds an assistant you can ask questions.
   threatens against you and what you do back, with KO chances. The opponent's
   hidden set is inferred from usage stats and tightens as the battle reveals
   item, ability, moves, and Tera. Inferred numbers are marked with a `~`.
-- **Ask the agent.** A question box runs a Claude (Haiku 4.5) assistant that
-  answers in a sentence or two, grounded in the real numbers. It never does the
-  math itself: for any matchup not already on screen (a bench Pokémon, a Tera, a
-  stat boost, a switch-in) it calls a `run_calc` tool backed by the actual engine.
+- **Ask the agent, by voice or text.** A question box (and a mic button) runs a
+  Claude (Haiku 4.5) assistant that answers in a sentence or two, grounded in the
+  real numbers. Speak a question and it talks the answer back; type one and it
+  replies in text. It never does the math itself: for any matchup not already on
+  screen (a bench Pokémon, a Tera, a stat boost, a switch-in) it calls a
+  `run_calc` tool backed by the actual engine. Voice uses the browser's built-in
+  Web Speech APIs.
 
 The extension reuses the app's `src/services/` calc, data, and set-inference
 layer, so it stays in sync with the calculator.
