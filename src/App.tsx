@@ -44,28 +44,6 @@ interface Assigned {
   suggestion?: SuggestedSet;
 }
 
-const SAMPLE = `Incineroar @ Safety Goggles
-Ability: Intimidate
-Level: 50
-Tera Type: Grass
-EVs: 252 HP / 4 Atk / 252 SpD
-Careful Nature
-- Fake Out
-- Knock Off
-- Flare Blitz
-- Parting Shot
-
-Charizard-Mega-Y @ Charizardite Y
-Ability: Drought
-Level: 50
-Tera Type: Fire
-EVs: 4 HP / 252 SpA / 252 Spe
-Modest Nature
-- Heat Wave
-- Air Slash
-- Solar Beam
-- Protect`;
-
 function DraggableCard({ mon, onAssign }: { mon: RosterMon; onAssign: (s: SlotId) => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: mon.id });
   return (
@@ -347,9 +325,6 @@ export default function App() {
               placeholder="Paste a Showdown team export…"
               spellCheck={false}
             />
-            <button type="button" className="link" onClick={() => loadPaste(SAMPLE)}>
-              load sample team
-            </button>
             {errors.length > 0 && (
               <ul className="errors">
                 {errors.map((er) => (
@@ -366,7 +341,7 @@ export default function App() {
               {roster.map((mon) => (
                 <DraggableCard key={mon.id} mon={mon} onAssign={(s) => assignFromRoster(s, mon)} />
               ))}
-              {roster.length === 0 && <p className="muted">No Pokémon yet — paste a team or load the sample.</p>}
+              {roster.length === 0 && <p className="muted">No Pokémon yet. Paste a Showdown team export above.</p>}
             </div>
           </section>
 
