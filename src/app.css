@@ -600,6 +600,18 @@ textarea {
   letter-spacing: 0;
   padding: 0.35rem 0.4rem;
 }
+.editor-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.editor-input-row select {
+  flex: 1;
+  min-width: 0;
+}
+.item-icon {
+  flex: 0 0 auto;
+}
 
 .spread-details {
   margin-top: 0.6rem;

@@ -1,6 +1,8 @@
+import type { CSSProperties } from 'react';
 import type { PokemonSet } from '@pkmn/sets';
 import type { SuggestedSet, UsageOption } from '../services/sets';
 import { allItems, allMoves, allTypes, abilitiesFor } from '../services/data';
+import { itemIconStyle } from '../services/sprites';
 import { evSummary } from './RosterCard';
 
 function pct(o: UsageOption): string {
@@ -19,12 +21,14 @@ function Select({
   options,
   onChange,
   allowBlank,
+  icon,
 }: {
   label: string;
   value: string;
   options: UsageOption[];
   onChange: (v: string) => void;
   allowBlank?: boolean;
+  icon?: CSSProperties | null;
 }) {
   // Ensure the current value is selectable even if not in the list.
   const names = options.map((o) => o.name);
@@ -32,15 +36,18 @@ function Select({
   return (
     <label className="editor-field">
       <span>{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
-        {allowBlank && <option value="">—</option>}
-        {[...extra, ...options].map((o) => (
-          <option key={o.name} value={o.name}>
-            {o.name}
-            {pct(o)}
-          </option>
-        ))}
-      </select>
+      <div className="editor-input-row">
+        {icon && <span className="item-icon" style={icon} />}
+        <select value={value} onChange={(e) => onChange(e.target.value)}>
+          {allowBlank && <option value="">—</option>}
+          {[...extra, ...options].map((o) => (
+            <option key={o.name} value={o.name}>
+              {o.name}
+              {pct(o)}
+            </option>
+          ))}
+        </select>
+      </div>
     </label>
   );
 }
@@ -77,7 +84,14 @@ export function OpponentEditor({
     <div className="editor">
       <div className="editor-grid">
         <Select label="Ability" value={set.ability} options={abilityOpts} onChange={(v) => patch({ ability: v })} />
-        <Select label="Item" value={set.item} options={itemOpts} onChange={(v) => patch({ item: v })} allowBlank />
+        <Select
+          label="Item"
+          value={set.item}
+          options={itemOpts}
+          onChange={(v) => patch({ item: v })}
+          allowBlank
+          icon={itemIconStyle(set.item)}
+        />
         {teraEnabled && (
           <Select
             label="Tera"

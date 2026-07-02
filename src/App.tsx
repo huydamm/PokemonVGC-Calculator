@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   useDraggable,
@@ -208,6 +208,37 @@ export default function App() {
   const format = getFormat(formatId);
   const info = resolved?.find((r) => r.def.id === formatId);
   const setSlot = (slot: SlotId, a: Assigned | null) => (slot === 'attacker' ? setAttacker(a) : setDefender(a));
+
+  // Re-derive auto-filled opponents when the format changes, so their set/stats
+  // reflect the new format's usage data instead of staying stale. Refs let the
+  // effect read the current slots without re-running when they change.
+  const attackerRef = useRef(attacker);
+  const defenderRef = useRef(defender);
+  attackerRef.current = attacker;
+  defenderRef.current = defender;
+  useEffect(() => {
+    let live = true;
+    const slots = [
+      ['attacker', attackerRef.current] as const,
+      ['defender', defenderRef.current] as const,
+    ];
+    if (!slots.some(([, a]) => a?.source === 'opponent')) return;
+    (async () => {
+      const rf = info ?? (await resolveFormat(getFormat(formatId)));
+      for (const [slot, cur] of slots) {
+        if (!cur || cur.source !== 'opponent') continue;
+        const species = cur.suggestion?.species ?? cur.mon.speciesName;
+        const suggestion = await getCommonSet(species, rf);
+        const mon = rosterMonFromSet(suggestedToSet(suggestion), `opp-${slot}`);
+        if (live && mon) setSlot(slot, { mon, source: 'opponent', suggestion });
+      }
+    })();
+    return () => {
+      live = false;
+    };
+    // Only re-run on format change (slots are read via refs).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formatId]);
 
   function loadPaste(text: string) {
     setPasteText(text);
