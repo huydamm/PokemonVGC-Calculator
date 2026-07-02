@@ -49,7 +49,6 @@ textarea,
 .picker input,
 .spread-stat input,
 .editor-field select,
-.editor-field input,
 .format-pick select,
 .cond-card select,
 .stage input {
@@ -593,8 +592,7 @@ textarea {
   gap: 3px;
   min-width: 0;
 }
-.editor-field select,
-.editor-field input {
+.editor-field select {
   width: 100%;
   max-width: 100%;
   font-size: 0.82rem;

@@ -1,37 +1,56 @@
-import { useId } from 'react';
 import type { PokemonSet } from '@pkmn/sets';
-import type { SuggestedSet } from '../services/sets';
+import type { SuggestedSet, UsageOption } from '../services/sets';
 import { allItems, allMoves, allTypes, abilitiesFor } from '../services/data';
 import { evSummary } from './RosterCard';
 
-/**
- * Autocomplete input backed by a shared <datalist>. Suggestions come from the
- * dex (via listId), but any value can be typed — so an item/move/ability can be
- * chosen manually even when a Pokémon has no usage data.
- */
-function Combo({
+function pct(o: UsageOption): string {
+  return o.pct == null ? ' (--%)' : ` (${o.pct}%)`;
+}
+
+/** Usage options (ranked, with %) followed by the rest of the dex (shown --%). */
+function withAll(usage: UsageOption[], all: string[]): UsageOption[] {
+  const seen = new Set(usage.map((o) => o.name));
+  return [...usage, ...all.filter((n) => !seen.has(n)).map((n) => ({ name: n, pct: null }))];
+}
+
+function Select({
   label,
   value,
-  listId,
+  options,
   onChange,
+  allowBlank,
 }: {
   label: string;
   value: string;
-  listId: string;
+  options: UsageOption[];
   onChange: (v: string) => void;
+  allowBlank?: boolean;
 }) {
+  // Ensure the current value is selectable even if not in the list.
+  const names = options.map((o) => o.name);
+  const extra = value && !names.includes(value) ? [{ name: value, pct: null }] : [];
   return (
     <label className="editor-field">
       <span>{label}</span>
-      <input list={listId} value={value} autoComplete="off" spellCheck={false} onChange={(e) => onChange(e.target.value)} />
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {allowBlank && <option value="">—</option>}
+        {[...extra, ...options].map((o) => (
+          <option key={o.name} value={o.name}>
+            {o.name}
+            {pct(o)}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }
 
 /**
- * Editor to swap an opponent's item / ability / tera / spread / moves. Usage
- * suggestions drive the auto-fill, but every field falls back to the full dex so
- * you can set anything by hand, including for Pokémon with no set data.
+ * Usage-% dropdowns to swap an auto-filled opponent's item / ability / tera /
+ * spread / moves. Each dropdown lists the usage picks first (with their %) then
+ * the rest of the legal dex (shown as --%), so anything can be chosen by hand —
+ * type to jump to it — even for Pokémon with no set data. Edits produce a new
+ * PokemonSet via onChange.
  */
 export function OpponentEditor({
   set,
@@ -46,17 +65,10 @@ export function OpponentEditor({
 }) {
   const patch = (p: Partial<PokemonSet>) => onChange({ ...set, ...p });
 
-  // One datalist per option kind, shared across fields (kept out of the DOM per
-  // field to avoid thousands of <option>s).
-  const itemsId = useId();
-  const movesId = useId();
-  const typesId = useId();
-  const abilitiesId = useId();
-
-  // Prefer the species' real abilities; add any usage-listed one just in case.
-  const abilityNames = Array.from(
-    new Set([...abilitiesFor(set.species), ...suggestion.abilities.map((a) => a.name)]),
-  );
+  const abilityOpts = withAll(suggestion.abilities, abilitiesFor(set.species));
+  const itemOpts = withAll(suggestion.items, allItems());
+  const teraOpts = withAll(suggestion.teraTypes, allTypes());
+  const moveOpts = withAll(suggestion.moveOptions, allMoves());
 
   const spreadValue =
     suggestion.spreads.find((s) => s.nature === set.nature && evSummary(s.evs) === evSummary(set.evs))?.label ?? '';
@@ -64,10 +76,16 @@ export function OpponentEditor({
   return (
     <div className="editor">
       <div className="editor-grid">
-        <Combo label="Ability" value={set.ability} listId={abilitiesId} onChange={(v) => patch({ ability: v })} />
-        <Combo label="Item" value={set.item} listId={itemsId} onChange={(v) => patch({ item: v })} />
+        <Select label="Ability" value={set.ability} options={abilityOpts} onChange={(v) => patch({ ability: v })} />
+        <Select label="Item" value={set.item} options={itemOpts} onChange={(v) => patch({ item: v })} allowBlank />
         {teraEnabled && (
-          <Combo label="Tera" value={set.teraType ?? ''} listId={typesId} onChange={(v) => patch({ teraType: v })} />
+          <Select
+            label="Tera"
+            value={set.teraType ?? ''}
+            options={teraOpts}
+            onChange={(v) => patch({ teraType: v })}
+            allowBlank
+          />
         )}
         {suggestion.spreads.length > 0 && (
           <label className="editor-field">
@@ -93,11 +111,12 @@ export function OpponentEditor({
 
       <div className="editor-moves">
         {[0, 1, 2, 3].map((i) => (
-          <Combo
+          <Select
             key={i}
             label={`Move ${i + 1}`}
             value={set.moves[i] ?? ''}
-            listId={movesId}
+            options={moveOpts}
+            allowBlank
             onChange={(v) => {
               const moves = [...set.moves];
               moves[i] = v;
@@ -106,12 +125,6 @@ export function OpponentEditor({
           />
         ))}
       </div>
-
-      {/* Shared option lists (rendered once). */}
-      <datalist id={abilitiesId}>{abilityNames.map((n) => <option key={n} value={n} />)}</datalist>
-      <datalist id={itemsId}>{allItems().map((n) => <option key={n} value={n} />)}</datalist>
-      <datalist id={typesId}>{allTypes().map((n) => <option key={n} value={n} />)}</datalist>
-      <datalist id={movesId}>{allMoves().map((n) => <option key={n} value={n} />)}</datalist>
     </div>
   );
 }
