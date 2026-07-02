@@ -41,3 +41,27 @@ const gens = new Generations(Dex, existsWithMegas);
 
 /** The shared Gen 9 generation, with classic Megas available as formes. */
 export const gen: Generation = gens.get(9);
+
+// Full dex option lists (memoized) — for manual overrides when usage data is
+// missing, so any legal item/move/type/ability can still be chosen.
+let itemsCache: string[] | null = null;
+let movesCache: string[] | null = null;
+let typesCache: string[] | null = null;
+
+export function allItems(): string[] {
+  if (!itemsCache) itemsCache = Array.from(gen.items, (i) => i.name).sort();
+  return itemsCache;
+}
+export function allMoves(): string[] {
+  if (!movesCache) movesCache = Array.from(gen.moves, (m) => m.name).sort();
+  return movesCache;
+}
+export function allTypes(): string[] {
+  if (!typesCache) typesCache = Array.from(gen.types, (t) => t.name).filter((n) => n !== '???').sort();
+  return typesCache;
+}
+/** The species' possible abilities (slots 0/1/Hidden). */
+export function abilitiesFor(species: string): string[] {
+  const sp = gen.species.get(species);
+  return sp ? (Object.values(sp.abilities).filter(Boolean) as string[]) : [];
+}

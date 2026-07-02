@@ -47,7 +47,7 @@ export interface FormatDef {
 export const FORMATS: FormatDef[] = [
   {
     id: 'gen9ou',
-    label: 'OU (Singles)',
+    label: 'OU',
     group: 'Gen 9 Smogon',
     gameType: 'Singles',
     level: 100,
