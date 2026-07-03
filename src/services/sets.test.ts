@@ -1,6 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { createSetService } from './sets';
+import { createSetService, suggestedToSet, type SuggestedSet } from './sets';
 import { getFormat, type ResolvedFormat } from './formats';
+
+describe('suggestedToSet item clamping', () => {
+  const base: SuggestedSet = {
+    species: 'Incineroar', level: 50, ability: 'Intimidate', item: 'Booster Energy', nature: 'Careful',
+    teraType: undefined, evs: {}, moves: [],
+    abilities: [], items: [{ name: 'Booster Energy', pct: 50 }, { name: 'Leftovers', pct: 30 }],
+    teraTypes: [], spreads: [], moveOptions: [], source: 'usage',
+  };
+  it('drops an item illegal in the format, keeping the top legal usage pick', () => {
+    expect(suggestedToSet(base, 'gen9champions').item).toBe('Leftovers'); // Booster Energy not in Champions
+  });
+  it('leaves the item untouched for unrestricted formats', () => {
+    expect(suggestedToSet(base, 'gen9ou').item).toBe('Booster Energy');
+  });
+});
 
 const resolved = (statsId: string | null, note?: string): ResolvedFormat => ({
   def: getFormat('gen9vgc2026'),

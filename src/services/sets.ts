@@ -10,7 +10,7 @@
 import { Smogon } from '@pkmn/smogon';
 import type { StatsTable } from '@pkmn/data';
 import type { PokemonSet } from '@pkmn/sets';
-import { gen } from './data';
+import { gen, legalItems } from './data';
 import { makeSet } from './team';
 import type { FormatDef, ResolvedFormat } from './formats';
 
@@ -206,12 +206,18 @@ export function createSetService(fetchFn: SmogonFetch = (url) => fetch(url)): Se
 }
 
 /** Turn a suggested set into a full PokemonSet for the calc/roster. */
-export function suggestedToSet(s: SuggestedSet): PokemonSet {
+export function suggestedToSet(s: SuggestedSet, formatId?: string): PokemonSet {
+  // Fallback usage (e.g. VGC for Champions) can suggest an item the format
+  // doesn't allow. Clamp to the legal pool: keep the top legal usage pick, else
+  // no item, rather than carrying an illegal one over.
+  const legal = legalItems(formatId);
+  const item =
+    legal && s.item && !legal.includes(s.item) ? s.items.find((o) => legal.includes(o.name))?.name ?? '' : s.item;
   return makeSet({
     species: s.species,
     level: s.level,
     ability: s.ability,
-    item: s.item,
+    item,
     nature: s.nature,
     teraType: s.teraType,
     evs: s.evs,

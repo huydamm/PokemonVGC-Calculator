@@ -222,7 +222,7 @@ export default function App() {
         if (!cur || cur.source !== 'opponent') continue;
         const species = cur.suggestion?.species ?? cur.mon.speciesName;
         const suggestion = await getCommonSet(species, rf);
-        const mon = rosterMonFromSet(suggestedToSet(suggestion), `opp-${slot}`);
+        const mon = rosterMonFromSet(suggestedToSet(suggestion, formatId), `opp-${slot}`);
         if (live && mon) setSlot(slot, { mon, source: 'opponent', suggestion });
       }
     })();
@@ -258,7 +258,7 @@ export default function App() {
     try {
       const rf = info ?? (await resolveFormat(format));
       const suggestion = await getCommonSet(species, rf);
-      const mon = rosterMonFromSet(suggestedToSet(suggestion), `opp-${slot}`);
+      const mon = rosterMonFromSet(suggestedToSet(suggestion, format.id), `opp-${slot}`);
       if (mon) setSlot(slot, { mon, source: 'opponent', suggestion });
     } finally {
       setLoading(null);
