@@ -31,6 +31,7 @@ import {
   type FormatDef,
 } from './services/formats';
 import { getCommonSet, suggestedToSet, type SuggestedSet } from './services/sets';
+import { legalItems } from './services/data';
 import { RosterCard } from './components/RosterCard';
 import { OpponentPicker } from './components/OpponentPicker';
 import { OpponentEditor } from './components/OpponentEditor';
@@ -117,8 +118,10 @@ function Slot({
                 value={assigned.mon.speciesName}
                 onChange={(e) => {
                   const next = applyForme(assigned.mon.set, e.target.value);
-                  // Reverting to base leaves no item; fill the most common one.
-                  const common = assigned.suggestion?.items?.[0]?.name;
+                  // Reverting to base leaves no item; fill the most common one
+                  // that's legal in this format (usage can rank an illegal item).
+                  const legal = legalItems(format.id);
+                  const common = assigned.suggestion?.items?.find((o) => !legal || legal.includes(o.name))?.name;
                   onForme(!next.item && common ? { ...next, item: common } : next);
                 }}
               >
