@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formeOptions, applyForme, isMegaForme, makeSet } from './team';
-import { createPokemon } from './calc';
+import { formeOptions, applyForme, isMegaForme, makeSet, setToPokemonOptions } from './team';
+import { createPokemon, createMove, runCalc, makeField } from './calc';
 
 describe('mega forme resolution', () => {
   it('lists base + available megas for a dual-mega species', () => {
@@ -41,6 +41,16 @@ describe('mega forme resolution', () => {
     const base = applyForme(mega, 'Charizard');
     expect(base.species).toBe('Charizard');
     expect(base.ability).not.toBe('Drought');
+  });
+
+  it('a Mega forme does not feed its stone to the calc engine (would crash)', () => {
+    const mega = applyForme(makeSet({ species: 'Venusaur', evs: { spa: 252 } }), 'Venusaur-Mega');
+    expect(mega.item).toBe('Venusaurite'); // display set keeps the stone
+    expect(setToPokemonOptions(mega).item).toBeUndefined(); // calc never sees it
+    // A defender holding its stone used to throw on every move; must not now.
+    const def = createPokemon(mega.species, setToPokemonOptions(mega));
+    const atk = createPokemon('Incineroar', { ability: 'Blaze' });
+    expect(() => runCalc(atk, def, createMove('Flamethrower'), makeField('Doubles'))).not.toThrow();
   });
 
   it('isMegaForme distinguishes formes', () => {

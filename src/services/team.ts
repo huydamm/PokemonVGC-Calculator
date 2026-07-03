@@ -41,13 +41,28 @@ export function setToPokemonOptions(set: PokemonSet): PokemonOptions {
   return {
     level: set.level || undefined,
     ability: set.ability || undefined,
-    item: set.item || undefined,
+    item: itemForCalc(set),
     nature: set.nature || undefined,
     teraType: set.teraType || undefined,
     moves: set.moves?.filter(Boolean),
     evs: set.evs,
     ivs: set.ivs,
   };
+}
+
+/**
+ * Item to feed the calc engine. Mega/Primal formes are already resolved by
+ * species (the forme toggle), so their required Mega Stone / Orb must NOT reach
+ * the engine: the adaptable build has no mega-item data, and a held stone sends
+ * it down its stone-based auto-mega path, which throws
+ * ("Cannot read properties of undefined (reading 'megaStone')") on every calc.
+ * The stone stays on the display set; it has no damage effect anyway.
+ */
+function itemForCalc(set: PokemonSet): string | undefined {
+  if (!set.item) return undefined;
+  const sp = gen.species.get(set.species);
+  if (sp && (sp.isMega || sp.isPrimal) && sp.requiredItem === set.item) return undefined;
+  return set.item;
 }
 
 const EMPTY_STATS = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
