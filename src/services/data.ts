@@ -93,3 +93,11 @@ export function requiredItemFor(species: string): string | undefined {
   const sp = gen.species.get(species);
   return sp && (sp.isMega || sp.isPrimal) ? sp.requiredItem : undefined;
 }
+
+// Per-format legal held items (by name). A format absent here is unrestricted
+// (whole item dex); only Champions limits items. See gen-legal.ts.
+import legalItemsJson from './legal-items.json';
+const LEGAL_ITEMS = legalItemsJson as Record<string, string[]>;
+export function legalItems(formatId?: string): string[] | null {
+  return (formatId && LEGAL_ITEMS[formatId]) || null;
+}

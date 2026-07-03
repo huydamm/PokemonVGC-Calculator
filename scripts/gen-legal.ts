@@ -91,6 +91,48 @@ function championsIds(): string[] {
   return [...new Set(ids)].sort();
 }
 
+// Pokémon Champions legal held items (Reg M-B, ~148). Formats without an entry
+// in legal-items.json are unrestricted (whole item dex).
+const CHAMPIONS_ITEMS = `
+Abomasite, Absolite, Aerodactylite, Aggronite, Alakazite, Altarianite, Ampharosite, Aspear Berry, Audinite, Babiri Berry,
+Banettite, Barbaracleite, Beedrillite, Big Root, Black Belt, Black Glasses, Blastoisinite, Blazikenite, BrightPowder, Cameruptite,
+Chandelurite, Charcoal, Charizardite X, Charizardite Y, Charti Berry, Cheri Berry, Chesnaughtite, Chesto Berry, Chilan Berry, Chimechite,
+Choice Scarf, Chople Berry, Clefablite, Coba Berry, Colbur Berry, Crabominite, Damp Rock, Delphoxite, Dragalgeite, Dragon Fang,
+Dragoninite, Drampanite, Eelektrossite, Emboarite, Excadrite, Expert Belt, Fairy Feather, Falinksite, Feraligite, Floettite,
+Focus Band, Focus Sash, Froslassite, Galladite, Garchompite, Gardevoirite, Gengarite, Glalitite, Glimmoranite, Golurkite,
+Greninjite, Gyaradosite, Haban Berry, Hard Stone, Hawluchanite, Heat Rock, Heracronite, Houndoominite, Icy Rock, Iron Ball,
+Kangaskhanite, Kasib Berry, Kebia Berry, King's Rock, Leftovers, Leppa Berry, Life Orb, Light Ball, Light Clay, Lopunnite,
+Lucarionite, Lum Berry, Magnet, Malamarite, Manectite, Mawileite, Medichamite, Meganiumite, Mental Herb, Meowsticite,
+Metagrossite, Metal Coat, Metronome, Miracle Seed, Muscle Band, Mystic Water, Never-Melt Ice, Occa Berry, Oran Berry, Passho Berry,
+Payapa Berry, Pecha Berry, Persim Berry, Pidgeotite, Pinsirite, Poison Barb, Pyroarite, Quick Claw, Raichunite X, Raichunite Y,
+Rawst Berry, Rindo Berry, Roseli Berry, Sablenite, Sceptileite, Scizorite, Scolipedeite, Scope Lens, Scovillainite, Scraftyite,
+Sharp Beak, Sharpedonite, Shed Shell, Shell Bell, Shuca Berry, Silk Scarf, SilverPowder, Sitrus Berry, Skarmorite, Slowbronite,
+Smooth Rock, Soft Sand, Spell Tag, Staraptorite, Starminite, Steelixite, Swampertite, Tanga Berry, TwistedSpoon, Tyranitarite,
+Venusaurite, Victreebelite, Wacan Berry, White Herb, Wide Lens, Wise Glasses, Yache Berry, Zoom Lens
+`;
+
+function championsItems(): string[] {
+  const dex = Dex.forGen(9);
+  const champ = new Set(championsIds());
+  const names = new Set<string>();
+  // Canonical Mega Stones / Orbs for the champions-legal megas (the source
+  // list's stone spellings are unreliable, so derive them from the species).
+  for (const sp of dex.species.all()) {
+    if ((sp.isMega || sp.isPrimal) && sp.requiredItem && champ.has(toID(sp.baseSpecies))) {
+      names.add(sp.requiredItem);
+    }
+  }
+  // Non-stone held items from the source list.
+  const missing: string[] = [];
+  for (const raw of CHAMPIONS_ITEMS.split(',').map((s) => s.trim()).filter(Boolean)) {
+    const it = dex.items.get(raw);
+    if (!it?.exists) missing.push(raw);
+    else if (!it.megaStone) names.add(it.name);
+  }
+  if (missing.length) console.warn(`  Champions items: ${missing.length} unresolved (skipped): ${missing.join(', ')}`);
+  return [...names].sort();
+}
+
 const out: Record<string, string[]> = {};
 for (const [appId, { id, level }] of Object.entries(SIM_FORMAT)) {
   out[appId] = simLegalIds(id, level);
@@ -99,6 +141,11 @@ for (const [appId, { id, level }] of Object.entries(SIM_FORMAT)) {
 out.gen9champions = championsIds();
 console.log(`gen9champions (Bulbapedia Reg M-B): ${out.gen9champions.length} legal species`);
 
-const dest = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'services', 'legal-species.json');
-writeFileSync(dest, JSON.stringify(out) + '\n');
-console.log(`wrote ${dest}`);
+const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'services');
+writeFileSync(join(dir, 'legal-species.json'), JSON.stringify(out) + '\n');
+console.log(`wrote legal-species.json`);
+
+const items: Record<string, string[]> = { gen9champions: championsItems() };
+writeFileSync(join(dir, 'legal-items.json'), JSON.stringify(items) + '\n');
+console.log(`gen9champions items: ${items.gen9champions.length}`);
+console.log(`wrote legal-items.json`);

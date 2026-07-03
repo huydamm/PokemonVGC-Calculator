@@ -37,6 +37,12 @@ describe('mega forme resolution', () => {
     expect(applyForme(makeSet({ species: 'Kyogre' }), 'Kyogre-Primal').item).toBe('Blue Orb');
   });
 
+  it('reverting a Mega to base drops the now-illegal stone', () => {
+    const mega = applyForme(makeSet({ species: 'Charizard', item: 'Life Orb' }), 'Charizard-Mega-Y');
+    expect(mega.item).toBe('Charizardite Y');
+    expect(applyForme(mega, 'Charizard').item).toBe(''); // caller fills the common item
+  });
+
   it('switching back to base resets an invalid (Mega-only) ability', () => {
     const mega = makeSet({ species: 'Charizard-Mega-Y', ability: 'Drought' });
     const base = applyForme(mega, 'Charizard');

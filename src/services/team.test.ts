@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseTeam, setToPokemonOptions, searchSpecies } from './team';
 import { createPokemon } from './calc';
+import { legalItems } from './data';
 
 describe('searchSpecies format legality filter', () => {
   const has = (list: { name: string }[], name: string) => list.some((e) => e.name === name);
@@ -23,6 +24,15 @@ describe('searchSpecies format legality filter', () => {
     expect(has(champ, 'Koraidon')).toBe(false); // no legendaries in Champions
     expect(has(champ, 'Beedrill')).toBe(true); // Past in SV, real in Champions
     expect(has(champ, 'Incineroar')).toBe(true);
+  });
+
+  it('Champions limits the item pool; other formats are unrestricted', () => {
+    const champ = legalItems('gen9champions');
+    expect(champ).not.toBeNull();
+    expect(champ).toContain('Leftovers');
+    expect(champ).toContain('Mawilite'); // canonical stone name
+    expect(champ).not.toContain('Booster Energy'); // no Paradox mons in Champions
+    expect(legalItems('gen9ou')).toBeNull(); // whole item dex
   });
 
   it('no format id => whole dex (no restriction)', () => {

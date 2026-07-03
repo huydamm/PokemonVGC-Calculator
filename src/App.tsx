@@ -115,7 +115,12 @@ function Slot({
               <span>Forme</span>
               <select
                 value={assigned.mon.speciesName}
-                onChange={(e) => onForme(applyForme(assigned.mon.set, e.target.value))}
+                onChange={(e) => {
+                  const next = applyForme(assigned.mon.set, e.target.value);
+                  // Reverting to base leaves no item; fill the most common one.
+                  const common = assigned.suggestion?.items?.[0]?.name;
+                  onForme(!next.item && common ? { ...next, item: common } : next);
+                }}
               >
                 {formes.map((f) => (
                   <option key={f.name} value={f.name}>
@@ -136,6 +141,7 @@ function Slot({
                 suggestion={assigned.suggestion}
                 teraEnabled={format.teraEnabled}
                 megasEnabled={format.megasEnabled}
+                formatId={format.id}
                 onChange={onEdit}
               />
             </>

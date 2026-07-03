@@ -209,7 +209,11 @@ export function applyForme(set: PokemonSet, speciesName: string): PokemonSet {
   const abilities = Object.values(sp.abilities) as string[];
   const isMega = sp.isMega || sp.isPrimal;
   const ability = isMega ? abilities[0] : abilities.includes(set.ability) ? set.ability : abilities[0];
-  const item = isMega && sp.requiredItem ? sp.requiredItem : set.item;
+  // To a Mega: force its stone. Reverting to base: drop the now-illegal stone
+  // (caller fills a sensible replacement); keep any non-stone item.
+  const old = gen.species.get(set.species);
+  const oldStone = old && (old.isMega || old.isPrimal) ? old.requiredItem : undefined;
+  const item = isMega && sp.requiredItem ? sp.requiredItem : set.item === oldStone ? '' : set.item;
   return { ...set, species: sp.name, ability, item };
 }
 
