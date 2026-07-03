@@ -169,14 +169,19 @@ export function formeOptions(speciesName: string): FormeOption[] {
   return out;
 }
 
-/** Switch a set's forme, forcing the Mega's ability (Megas overwrite ability). */
+/**
+ * Switch a set's forme, forcing the Mega's ability (Megas overwrite ability)
+ * and its required Mega Stone / Orb item. Rayquaza-Mega has no stone
+ * (`requiredItem` is undefined); its item is left untouched.
+ */
 export function applyForme(set: PokemonSet, speciesName: string): PokemonSet {
   const sp = gen.species.get(speciesName);
   if (!sp) return set;
   const abilities = Object.values(sp.abilities) as string[];
   const isMega = sp.isMega || sp.isPrimal;
   const ability = isMega ? abilities[0] : abilities.includes(set.ability) ? set.ability : abilities[0];
-  return { ...set, species: sp.name, ability };
+  const item = isMega && sp.requiredItem ? sp.requiredItem : set.item;
+  return { ...set, species: sp.name, ability, item };
 }
 
 /** Parse a Showdown team export into roster cards + per-mon errors. */

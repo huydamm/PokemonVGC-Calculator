@@ -28,6 +28,14 @@ describe('mega forme resolution', () => {
     expect(mon.species.baseStats.spa).toBe(159);
   });
 
+  it('switching to a Mega sets its required Mega Stone as the item', () => {
+    const base = makeSet({ species: 'Charizard', item: 'Life Orb' });
+    expect(applyForme(base, 'Charizard-Mega-X').item).toBe('Charizardite X');
+    expect(applyForme(base, 'Charizard-Mega-Y').item).toBe('Charizardite Y');
+    // Primal reversion is item-driven too (Blue/Red Orb).
+    expect(applyForme(makeSet({ species: 'Kyogre' }), 'Kyogre-Primal').item).toBe('Blue Orb');
+  });
+
   it('switching back to base resets an invalid (Mega-only) ability', () => {
     const mega = makeSet({ species: 'Charizard-Mega-Y', ability: 'Drought' });
     const base = applyForme(mega, 'Charizard');
