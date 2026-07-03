@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { PokemonSet } from '@pkmn/sets';
 import type { SuggestedSet, UsageOption } from '../services/sets';
-import { allItems, allMoves, allTypes, abilitiesFor, megaStones } from '../services/data';
+import { allItems, allMoves, allTypes, abilitiesFor, megaStones, requiredItemFor } from '../services/data';
 import { itemIconStyle } from '../services/sprites';
 import { evSummary } from './RosterCard';
 
@@ -87,11 +87,14 @@ export function OpponentEditor({
     suggestion.abilities.filter((o) => legalSet.has(o.name)),
     legalAbilities,
   );
-  // Mega formats: surface the Mega Stones / Orbs first in the item list.
+  // A Mega/Primal forme must hold its stone to exist, so its item is forced to
+  // that stone (single option, no %). Otherwise, in Mega formats surface the
+  // Mega Stones / Orbs first; elsewhere the usual usage-then-dex list.
+  const forcedStone = requiredItemFor(set.species);
   const stones = megasEnabled ? megaStones() : [];
   const stoneSet = new Set(stones);
   const items = [...stones, ...allItems().filter((n) => !stoneSet.has(n))];
-  const itemOpts = withAll(suggestion.items, items);
+  const itemOpts = forcedStone ? [{ name: forcedStone, pct: null }] : withAll(suggestion.items, items);
   const teraOpts = withAll(suggestion.teraTypes, allTypes());
   const moveOpts = withAll(suggestion.moveOptions, allMoves());
 
@@ -107,7 +110,7 @@ export function OpponentEditor({
           value={set.item}
           options={itemOpts}
           onChange={(v) => patch({ item: v })}
-          allowBlank
+          allowBlank={!forcedStone}
           icon={itemIconStyle(set.item)}
         />
         {teraEnabled && (

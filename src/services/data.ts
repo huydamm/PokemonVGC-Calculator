@@ -87,3 +87,9 @@ export function abilitiesFor(species: string): string[] {
   const sp = gen.species.get(species);
   return sp ? (Object.values(sp.abilities).filter(Boolean) as string[]) : [];
 }
+
+/** The Mega Stone / Orb a forme requires to exist, if any (else undefined). */
+export function requiredItemFor(species: string): string | undefined {
+  const sp = gen.species.get(species);
+  return sp && (sp.isMega || sp.isPrimal) ? sp.requiredItem : undefined;
+}
