@@ -14,8 +14,15 @@
  */
 import { Dex } from '@pkmn/dex';
 import { Generations, type Generation, type Data } from '@pkmn/data';
+import legalSpecies from './legal-species.json';
 
 const MEGA_FORMES = new Set(['Mega', 'Mega-X', 'Mega-Y', 'Primal']);
+
+// Pokémon Champions has its own dex: it includes species that left the Gen 9
+// games (flagged `Past` here) and are otherwise dropped. Re-admit that roster so
+// the data layer can represent them (see gen-legal.ts). Per-format pickers still
+// gate on the same list, so Champions mons don't leak into OU/Doubles.
+const CHAMPIONS_IDS = new Set((legalSpecies as Record<string, string[]>).gen9champions ?? []);
 
 /** True for the Mega/Primal species formes we want re-admitted into Gen 9. */
 function isMegaForme(d: Data): boolean {
@@ -26,12 +33,13 @@ function isMegaForme(d: Data): boolean {
   );
 }
 
-/** DEFAULT_EXISTS, plus: keep Mega/Primal formes that default would drop. */
+/** DEFAULT_EXISTS, plus: keep Mega/Primal formes and the Champions roster. */
 function existsWithMegas(d: Data): boolean {
   if (!d.exists) return false;
   if ('isNonstandard' in d && d.isNonstandard) {
-    // Re-admit Mega/Primal formes (flagged `Past` in Gen 9); reject everything else.
-    return isMegaForme(d);
+    // Re-admit Mega/Primal formes and Champions-roster species (all `Past` in
+    // Gen 9); reject everything else.
+    return isMegaForme(d) || (d.kind === 'Species' && CHAMPIONS_IDS.has(d.id));
   }
   if (d.kind === 'Ability' && d.id === 'noability') return false;
   return !('tier' in d && ['Illegal', 'Unreleased'].includes((d as { tier: string }).tier));

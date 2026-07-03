@@ -12,11 +12,17 @@ describe('searchSpecies format legality filter', () => {
     expect(has(ou, 'Landorus-Therian')).toBe(true);
   });
 
-  it('VGC keeps restricted legendaries but drops mythicals', () => {
-    const vgc = searchSpecies('', 2000, 'gen9vgc2026');
-    expect(has(vgc, 'Koraidon')).toBe(true);
-    expect(has(vgc, 'Miraidon')).toBe(true);
-    expect(has(vgc, 'Mew')).toBe(false); // mythical, banned in VGC
+  it('Doubles OU excludes Ubers like Singles', () => {
+    const dou = searchSpecies('', 2000, 'gen9doublesou');
+    expect(has(dou, 'Miraidon')).toBe(false); // AG
+    expect(has(dou, 'Landorus-Therian')).toBe(true);
+  });
+
+  it('Champions has its own roster: no Legendaries, includes Past-dex mons', () => {
+    const champ = searchSpecies('', 3000, 'gen9champions');
+    expect(has(champ, 'Koraidon')).toBe(false); // no legendaries in Champions
+    expect(has(champ, 'Beedrill')).toBe(true); // Past in SV, real in Champions
+    expect(has(champ, 'Incineroar')).toBe(true);
   });
 
   it('no format id => whole dex (no restriction)', () => {

@@ -15,10 +15,10 @@ describe('format source resolution', () => {
 
   it('falls back down the chain and reports which tier was used', async () => {
     // Champions stats unpublished -> should land on gen9vgc2026 with a note.
-    const r = await resolveFormat(getFormat('gen9champions'), mockFetch(new Set(['gen9vgc2026', 'gen9vgc2025'])));
+    const r = await resolveFormat(getFormat('gen9champions'), mockFetch(new Set(['gen9vgc2026'])));
     expect(r.stats.id).toBe('gen9vgc2026');
     expect(r.stats.note).toMatch(/unavailable/);
-    expect(r.sets.id).toBe('gen9vgc2025');
+    expect(r.sets.id).toBe('gen9vgc2026');
   });
 
   it('never throws when nothing is available; signals base-stats fallback', async () => {

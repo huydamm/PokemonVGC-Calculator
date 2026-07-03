@@ -44,11 +44,19 @@ interface Assigned {
   suggestion?: SuggestedSet;
 }
 
-function DraggableCard({ mon, onAssign }: { mon: RosterMon; onAssign: (s: SlotId) => void }) {
+function DraggableCard({
+  mon,
+  onAssign,
+  showTera,
+}: {
+  mon: RosterMon;
+  onAssign: (s: SlotId) => void;
+  showTera: boolean;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: mon.id });
   return (
     <div ref={setNodeRef} className={`drag-wrap${isDragging ? ' dragging' : ''}`} {...attributes} {...listeners}>
-      <RosterCard mon={mon} onAssign={onAssign} />
+      <RosterCard mon={mon} onAssign={onAssign} showTera={showTera} />
     </div>
   );
 }
@@ -95,7 +103,7 @@ function Slot({
 
       {!loading && assigned && (
         <>
-          <RosterCard mon={assigned.mon} compact />
+          <RosterCard mon={assigned.mon} compact showTera={format.teraEnabled} />
           {format.teraEnabled && assigned.mon.teraType && (
             <label className={`tera-toggle${tera ? ' on' : ''}`}>
               <input type="checkbox" checked={tera} onChange={(e) => onToggleTera(e.target.checked)} />
@@ -339,7 +347,7 @@ export default function App() {
             )}
             <div className="roster">
               {roster.map((mon) => (
-                <DraggableCard key={mon.id} mon={mon} onAssign={(s) => assignFromRoster(s, mon)} />
+                <DraggableCard key={mon.id} mon={mon} onAssign={(s) => assignFromRoster(s, mon)} showTera={format.teraEnabled} />
               ))}
               {roster.length === 0 && <p className="muted">No Pokémon yet. Paste a Showdown team export above.</p>}
             </div>

@@ -47,8 +47,8 @@ export interface FormatDef {
 export const FORMATS: FormatDef[] = [
   {
     id: 'gen9ou',
-    label: 'OU',
-    group: 'Gen 9 Smogon',
+    label: 'Singles',
+    group: 'Gen 9 OU',
     gameType: 'Singles',
     level: 100,
     megasEnabled: false,
@@ -56,6 +56,18 @@ export const FORMATS: FormatDef[] = [
     statSystem: EV_SYSTEM,
     statsCandidates: ['gen9ou'],
     setsCandidates: ['gen9ou'],
+  },
+  {
+    id: 'gen9doublesou',
+    label: 'Doubles',
+    group: 'Gen 9 OU',
+    gameType: 'Doubles',
+    level: 100,
+    megasEnabled: false,
+    teraEnabled: true,
+    statSystem: EV_SYSTEM,
+    statsCandidates: ['gen9doublesou'],
+    setsCandidates: ['gen9doublesou'],
   },
   {
     id: 'gen9champions',
@@ -66,21 +78,10 @@ export const FORMATS: FormatDef[] = [
     megasEnabled: true,
     teraEnabled: false,
     statSystem: SP_SYSTEM,
-    // Champions data is not published yet; fall back to the newest VGC usage.
-    statsCandidates: ['gen9championsvgc2026regmb', 'gen9championsvgc2026regma', 'gen9vgc2026', 'gen9vgc2025'],
-    setsCandidates: ['gen9championsvgc2026regmb', 'gen9vgc2025', 'gen9vgc2024'],
-  },
-  {
-    id: 'gen9vgc2026',
-    label: 'VGC 2026 (Doubles)',
-    group: 'Gen 9 VGC',
-    gameType: 'Doubles',
-    level: 50,
-    megasEnabled: false,
-    teraEnabled: true,
-    statSystem: EV_SYSTEM,
-    statsCandidates: ['gen9vgc2026', 'gen9vgc2025', 'gen9vgc2024'],
-    setsCandidates: ['gen9vgc2025', 'gen9vgc2024'],
+    // Champions usage data is not published on data.pkmn.cc; opponent auto-fill
+    // falls back to base stats. The legal roster is real (see gen-legal.ts).
+    statsCandidates: ['gen9championsvgc2026regmb', 'gen9vgc2026'],
+    setsCandidates: ['gen9championsvgc2026regmb', 'gen9vgc2026'],
   },
 ];
 

@@ -28,10 +28,12 @@ export interface RosterCardProps {
   mon: RosterMon;
   compact?: boolean;
   onAssign?: (slot: 'attacker' | 'defender') => void;
+  /** Hide the Tera chip in formats without Terastallization (e.g. Champions). */
+  showTera?: boolean;
 }
 
 /** Presentational team card: sprite, name, forme, item, tera, ability, spread. */
-export function RosterCard({ mon, compact, onAssign }: RosterCardProps) {
+export function RosterCard({ mon, compact, onAssign, showTera = true }: RosterCardProps) {
   const accent = typeColor(mon.types[0]);
   const evs = evSummary(mon.set.evs);
   return (
@@ -54,7 +56,7 @@ export function RosterCard({ mon, compact, onAssign }: RosterCardProps) {
           {mon.types.map((t) => (
             <Chip key={t} label={t} color={typeColor(t)} />
           ))}
-          {mon.teraType && <Chip label={`Tera ${mon.teraType}`} color={typeColor(mon.teraType)} />}
+          {showTera && mon.teraType && <Chip label={`Tera ${mon.teraType}`} color={typeColor(mon.teraType)} />}
         </div>
         {!compact && (
           <div className="card-meta">

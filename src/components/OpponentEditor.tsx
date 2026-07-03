@@ -33,6 +33,10 @@ function Select({
   // Ensure the current value is selectable even if not in the list.
   const names = options.map((o) => o.name);
   const extra = value && !names.includes(value) ? [{ name: value, pct: null }] : [];
+  const all = [...extra, ...options];
+  // % only means something when there's a choice; a single-option field (e.g. a
+  // Mega's forced ability) shows just the name.
+  const showPct = all.length > 1;
   return (
     <label className="editor-field">
       <span>{label}</span>
@@ -40,10 +44,10 @@ function Select({
         {icon && <span className="item-icon" style={icon} />}
         <select value={value} onChange={(e) => onChange(e.target.value)}>
           {allowBlank && <option value="">—</option>}
-          {[...extra, ...options].map((o) => (
+          {all.map((o) => (
             <option key={o.name} value={o.name}>
               {o.name}
-              {pct(o)}
+              {showPct && pct(o)}
             </option>
           ))}
         </select>
