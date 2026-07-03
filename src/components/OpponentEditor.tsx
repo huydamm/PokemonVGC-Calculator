@@ -78,7 +78,15 @@ export function OpponentEditor({
 }) {
   const patch = (p: Partial<PokemonSet>) => onChange({ ...set, ...p });
 
-  const abilityOpts = withAll(suggestion.abilities, abilitiesFor(set.species));
+  // Only abilities the current forme can legally have: drops base-usage
+  // abilities that don't apply to a Mega (which is locked to one ability), and
+  // vice-versa. A single legal ability then renders with no % (no real choice).
+  const legalAbilities = abilitiesFor(set.species);
+  const legalSet = new Set(legalAbilities);
+  const abilityOpts = withAll(
+    suggestion.abilities.filter((o) => legalSet.has(o.name)),
+    legalAbilities,
+  );
   // Mega formats: surface the Mega Stones / Orbs first in the item list.
   const stones = megasEnabled ? megaStones() : [];
   const stoneSet = new Set(stones);
