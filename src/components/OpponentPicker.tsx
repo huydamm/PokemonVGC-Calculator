@@ -2,7 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { searchSpecies } from '../services/team';
 import { spriteUrl, SUBSTITUTE_SPRITE, typeColor } from '../services/sprites';
 
-export function OpponentPicker({ onPick }: { onPick: (species: string) => void }) {
+export function OpponentPicker({
+  onPick,
+  formatId,
+}: {
+  onPick: (species: string) => void;
+  formatId: string;
+}) {
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [active, setActive] = useState(0);
@@ -13,7 +19,7 @@ export function OpponentPicker({ onPick }: { onPick: (species: string) => void }
     return () => clearTimeout(t);
   }, [query]);
 
-  const results = useMemo(() => searchSpecies(debounced, 30), [debounced]);
+  const results = useMemo(() => searchSpecies(debounced, 30, formatId), [debounced, formatId]);
   useEffect(() => setActive(0), [debounced]);
 
   function onKeyDown(e: React.KeyboardEvent) {

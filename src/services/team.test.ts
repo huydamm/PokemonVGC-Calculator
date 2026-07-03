@@ -1,6 +1,29 @@
 import { describe, it, expect } from 'vitest';
-import { parseTeam, setToPokemonOptions } from './team';
+import { parseTeam, setToPokemonOptions, searchSpecies } from './team';
 import { createPokemon } from './calc';
+
+describe('searchSpecies format legality filter', () => {
+  const has = (list: { name: string }[], name: string) => list.some((e) => e.name === name);
+
+  it('OU excludes Ubers/AG but keeps standard mons', () => {
+    const ou = searchSpecies('', 2000, 'gen9ou');
+    expect(has(ou, 'Koraidon')).toBe(false); // Uber
+    expect(has(ou, 'Miraidon')).toBe(false); // AG
+    expect(has(ou, 'Landorus-Therian')).toBe(true);
+  });
+
+  it('VGC keeps restricted legendaries but drops mythicals', () => {
+    const vgc = searchSpecies('', 2000, 'gen9vgc2026');
+    expect(has(vgc, 'Koraidon')).toBe(true);
+    expect(has(vgc, 'Miraidon')).toBe(true);
+    expect(has(vgc, 'Mew')).toBe(false); // mythical, banned in VGC
+  });
+
+  it('no format id => whole dex (no restriction)', () => {
+    const all = searchSpecies('Koraidon', 5);
+    expect(has(all, 'Koraidon')).toBe(true);
+  });
+});
 
 const TEAM = `
 Incineroar @ Safety Goggles

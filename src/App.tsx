@@ -141,7 +141,7 @@ function Slot({
       {!loading && !assigned && (
         <>
           <div className="slot-empty">Drag a team Pokémon here, or search:</div>
-          <OpponentPicker onPick={onPick} />
+          <OpponentPicker onPick={onPick} formatId={format.id} />
         </>
       )}
     </div>

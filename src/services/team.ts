@@ -7,6 +7,14 @@ import type { Data } from '@pkmn/sets';
 import { gen } from './data';
 import { spriteUrl } from './sprites';
 import type { PokemonOptions } from './calc';
+import legalSpecies from './legal-species.json';
+
+// Exact-to-Showdown legal species pool per format (by species id), precomputed
+// from @pkmn/sim rules — see scripts/gen-legal.ts. A format absent here (or an
+// unknown id) means "no restriction": show the whole dex.
+const LEGAL: Record<string, Set<string>> = Object.fromEntries(
+  Object.entries(legalSpecies as Record<string, string[]>).map(([f, ids]) => [f, new Set(ids)]),
+);
 
 export interface RosterMon {
   /** Stable key for React / drag-and-drop. */
@@ -92,6 +100,7 @@ function toRosterMon(set: PokemonSet, index: number, idPrefix = 't'): RosterMon 
 }
 
 export interface SpeciesEntry {
+  id: string;
   name: string;
   baseSpecies: string;
   forme?: string;
@@ -109,17 +118,22 @@ function index(): SpeciesEntry[] {
     if (sp.isMega || sp.isPrimal || sp.forme === 'Mega' || sp.forme === 'Mega-X' || sp.forme === 'Mega-Y' || sp.forme === 'Primal') {
       continue;
     }
-    out.push({ name: sp.name, baseSpecies: sp.baseSpecies, forme: sp.forme, num: sp.num, types: [...sp.types] });
+    out.push({ id: sp.id, name: sp.name, baseSpecies: sp.baseSpecies, forme: sp.forme, num: sp.num, types: [...sp.types] });
   }
   out.sort((a, b) => a.name.localeCompare(b.name));
   speciesIndex = out;
   return out;
 }
 
-/** Case-insensitive substring search over species names, dex order on ties. */
-export function searchSpecies(query: string, limit = 40): SpeciesEntry[] {
+/**
+ * Case-insensitive substring search over species names, dex order on ties,
+ * restricted to the format's legal pool when one is known (unknown/absent
+ * format => whole dex).
+ */
+export function searchSpecies(query: string, limit = 40, formatId?: string): SpeciesEntry[] {
   const q = query.trim().toLowerCase();
-  const all = index();
+  const legal = formatId ? LEGAL[formatId] : undefined;
+  const all = legal ? index().filter((e) => legal.has(e.id)) : index();
   if (!q) return all.slice(0, limit);
   const starts: SpeciesEntry[] = [];
   const contains: SpeciesEntry[] = [];

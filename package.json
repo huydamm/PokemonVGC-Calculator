@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "prove": "tsx scripts/prove-engine.ts",
     "smoke": "node scripts/smoke.mjs",
+    "gen:legal": "tsx scripts/gen-legal.ts",
     "typecheck": "tsc -p tsconfig.json",
     "build:ext": "esbuild extension/inject.ts extension/content.ts extension/background.ts extension/options.ts --bundle --minify --format=iife --target=chrome111 --external:node:* --outdir=extension/dist"
   },
@@ -27,6 +28,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@pkmn/sim": "^0.10.11",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
