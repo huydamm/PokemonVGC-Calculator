@@ -12,11 +12,36 @@ Core logic is a UI-independent **service layer** in `src/services/` that React
 consumes. Each service is testable on its own (Vitest). When adding logic, put it
 in a service with a `*.test.ts`, not in a component.
 
+## Formats and legality
+
+Three formats, two groups: **Gen 9 OU** (`gen9ou` Singles, `gen9doublesou`
+Doubles, both Lv100, Tera on, no Megas) and **Pokémon Champions**
+(`gen9champions`, Doubles Lv50, Megas on, no Tera). Champions has no
+data.pkmn.cc usage, so opponent auto-fill falls back to `gen9vgc2026` and then
+base stats.
+
+Per-format legal **species** and **items** are precomputed by
+`scripts/gen-legal.ts` into `src/services/legal-species.json` and
+`legal-items.json`. OU/Doubles pools come from `@pkmn/sim`'s
+exact Showdown rules (dev-only dep, never bundled). Champions has no sim format,
+so its roster and item list are hand-maintained from Bulbapedia / MetaVGC
+(current Reg M-B); its Mega Stones are derived canonically from the mega species.
+`data.ts` re-admits the Champions roster because many of its mons are flagged
+`Past` in the SV dex. Regenerate with `npm run gen:legal` when a new regulation
+ships or `@pkmn/*` bumps.
+
+**Megas:** the forme toggle mega-evolves by species (`applyForme`), which also
+forces the Mega's one ability and its required stone item, and drops the stale
+stone when reverting to base. The stone is display-only: `setToPokemonOptions`
+strips it before the calc, because a held stone crashes the adaptable engine
+(no mega-item data). The opponent editor locks a Mega's item and hides usage %
+on single-option fields.
+
 | Service | Role |
 | --- | --- |
-| `data.ts` | the single shared Gen 9 `Generation` (Megas re-admitted) |
+| `data.ts` | the single shared Gen 9 `Generation` (Megas + Champions roster re-admitted); `legalItems`, `megaStones`, `requiredItemFor` |
 | `calc.ts` | `@smogon/calc/adaptable` wrapper: `createPokemon`/`createMove`/`runCalc`/`buildField` |
-| `sets.ts` | opponent common-set inference + usage-stat fallback chain (`getCommonSet`) |
+| `sets.ts` | opponent common-set inference + usage-stat fallback chain (`getCommonSet`); `suggestedToSet` clamps the item to the format's legal pool |
 | `formats.ts` | format registry + runtime data-source discovery (`resolveFormat`) |
 | `team.ts` | Showdown paste parsing, species/forme helpers |
 | `conditions.ts` | battle-conditions + per-Pokémon modifier model |
@@ -50,6 +75,7 @@ live `mon.level`, never the inferred set's level (it's often 50). The bundle is
 npm run dev        # app dev server (localhost:5173)
 npm test           # Vitest suite
 npm run typecheck  # tsc -p tsconfig.json
+npm run gen:legal  # regenerate legal-species.json + legal-items.json
 npm run build:ext  # bundle the extension to extension/dist (gitignored)
 ```
 
