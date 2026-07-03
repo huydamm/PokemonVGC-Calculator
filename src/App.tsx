@@ -135,6 +135,7 @@ function Slot({
                 set={assigned.mon.set}
                 suggestion={assigned.suggestion}
                 teraEnabled={format.teraEnabled}
+                megasEnabled={format.megasEnabled}
                 onChange={onEdit}
               />
             </>

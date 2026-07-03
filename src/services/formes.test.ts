@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { formeOptions, applyForme, isMegaForme, makeSet, setToPokemonOptions } from './team';
 import { createPokemon, createMove, runCalc, makeField } from './calc';
+import { megaStones } from './data';
 
 describe('mega forme resolution', () => {
   it('lists base + available megas for a dual-mega species', () => {
@@ -51,6 +52,13 @@ describe('mega forme resolution', () => {
     const def = createPokemon(mega.species, setToPokemonOptions(mega));
     const atk = createPokemon('Incineroar', { ability: 'Blaze' });
     expect(() => runCalc(atk, def, createMove('Flamethrower'), makeField('Doubles'))).not.toThrow();
+  });
+
+  it('megaStones lists the required stones/orbs', () => {
+    const stones = megaStones();
+    expect(stones).toContain('Charizardite Y');
+    expect(stones).toContain('Blue Orb'); // Primal
+    expect(stones).not.toContain('Leftovers');
   });
 
   it('isMegaForme distinguishes formes', () => {

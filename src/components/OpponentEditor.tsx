@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { PokemonSet } from '@pkmn/sets';
 import type { SuggestedSet, UsageOption } from '../services/sets';
-import { allItems, allMoves, allTypes, abilitiesFor } from '../services/data';
+import { allItems, allMoves, allTypes, abilitiesFor, megaStones } from '../services/data';
 import { itemIconStyle } from '../services/sprites';
 import { evSummary } from './RosterCard';
 
@@ -67,17 +67,23 @@ export function OpponentEditor({
   set,
   suggestion,
   teraEnabled,
+  megasEnabled,
   onChange,
 }: {
   set: PokemonSet;
   suggestion: SuggestedSet;
   teraEnabled: boolean;
+  megasEnabled: boolean;
   onChange: (next: PokemonSet) => void;
 }) {
   const patch = (p: Partial<PokemonSet>) => onChange({ ...set, ...p });
 
   const abilityOpts = withAll(suggestion.abilities, abilitiesFor(set.species));
-  const itemOpts = withAll(suggestion.items, allItems());
+  // Mega formats: surface the Mega Stones / Orbs first in the item list.
+  const stones = megasEnabled ? megaStones() : [];
+  const stoneSet = new Set(stones);
+  const items = [...stones, ...allItems().filter((n) => !stoneSet.has(n))];
+  const itemOpts = withAll(suggestion.items, items);
   const teraOpts = withAll(suggestion.teraTypes, allTypes());
   const moveOpts = withAll(suggestion.moveOptions, allMoves());
 

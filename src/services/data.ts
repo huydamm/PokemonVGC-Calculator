@@ -60,6 +60,20 @@ export function allItems(): string[] {
   if (!itemsCache) itemsCache = Array.from(gen.items, (i) => i.name).sort();
   return itemsCache;
 }
+
+// Mega Stones / Primal Orbs, derived from the formes that require them. Surfaced
+// first in the item picker for Mega formats (Champions), where they matter and
+// there's no usage data to rank by.
+let megaStoneCache: string[] | null = null;
+export function megaStones(): string[] {
+  if (megaStoneCache) return megaStoneCache;
+  const s = new Set<string>();
+  for (const sp of gen.species) {
+    if ((sp.isMega || sp.isPrimal) && sp.requiredItem) s.add(sp.requiredItem);
+  }
+  megaStoneCache = [...s].sort();
+  return megaStoneCache;
+}
 export function allMoves(): string[] {
   if (!movesCache) movesCache = Array.from(gen.moves, (m) => m.name).sort();
   return movesCache;
