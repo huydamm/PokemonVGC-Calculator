@@ -13,6 +13,7 @@ import type { PokemonSet } from '@pkmn/sets';
 import { gen, legalItems } from './data';
 import { makeSet } from './team';
 import type { FormatDef, ResolvedFormat } from './formats';
+import { createChampionsSets, type ChampionsSets } from './champions-sets';
 
 export interface UsageOption {
   name: string;
@@ -185,17 +186,30 @@ export interface SetService {
   getCommonSet(speciesName: string, resolved: ResolvedFormat): Promise<SuggestedSet>;
 }
 
-/** Build a set service over an injectable fetch (swappable/testable). */
-export function createSetService(fetchFn: SmogonFetch = (url) => fetch(url)): SetService {
+/** Build a set service over injectable fetches (swappable/testable). */
+export function createSetService(
+  fetchFn: SmogonFetch = (url) => fetch(url),
+  champions: ChampionsSets = createChampionsSets(),
+): SetService {
   const smogon = new Smogon(fetchFn);
   const cache = new Map<string, Promise<SuggestedSet>>();
+
+  // Champions has no data.pkmn.cc usage; try CBD first, else fall through the
+  // normal chain (vgc2026 fallback -> base stats).
+  async function resolve(speciesName: string, resolved: ResolvedFormat): Promise<SuggestedSet> {
+    if (resolved.def.id === 'gen9champions') {
+      const c = await champions.get(speciesName, resolved.def.level);
+      if (c) return c;
+    }
+    return build(smogon, speciesName, resolved.def, resolved.stats.id, resolved.stats.note);
+  }
+
   return {
     getCommonSet(speciesName, resolved) {
-      const statsId = resolved.stats.id;
-      const key = `${statsId ?? 'none'}|${speciesName}`;
+      const key = `${resolved.def.id}|${resolved.stats.id ?? 'none'}|${speciesName}`;
       let p = cache.get(key);
       if (!p) {
-        p = build(smogon, speciesName, resolved.def, statsId, resolved.stats.note).catch(() =>
+        p = resolve(speciesName, resolved).catch(() =>
           baseSet(speciesName, resolved.def.level, 'Lookup failed — using base stats'),
         );
         cache.set(key, p);

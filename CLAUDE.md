@@ -17,8 +17,9 @@ in a service with a `*.test.ts`, not in a component.
 Three formats, two groups: **Gen 9 OU** (`gen9ou` Singles, `gen9doublesou`
 Doubles, both Lv100, Tera on, no Megas) and **Pokémon Champions**
 (`gen9champions`, Doubles Lv50, Megas on, no Tera). Champions has no
-data.pkmn.cc usage, so opponent auto-fill falls back to `gen9vgc2026` and then
-base stats.
+data.pkmn.cc usage, so opponent auto-fill pulls real Champions usage from
+championsbattledata.com (`champions-sets.ts`), falling back to `gen9vgc2026`
+and then base stats for the handful of mons CBD doesn't cover.
 
 Per-format legal **species** and **items** are precomputed by
 `scripts/gen-legal.ts` into `src/services/legal-species.json` and
@@ -42,6 +43,7 @@ on single-option fields.
 | `data.ts` | the single shared Gen 9 `Generation` (Megas + Champions roster re-admitted); `legalItems`, `megaStones`, `requiredItemFor` |
 | `calc.ts` | `@smogon/calc/adaptable` wrapper: `createPokemon`/`createMove`/`runCalc`/`buildField` |
 | `sets.ts` | opponent common-set inference + usage-stat fallback chain (`getCommonSet`); `suggestedToSet` clamps the item to the format's legal pool |
+| `champions-sets.ts` | Champions-only usage from championsbattledata.com (`/api/index` + `/api/battle/Doubles/:battleName`); Stat Points -> EVs (x8); returns null (falls through) for mons CBD lacks |
 | `formats.ts` | format registry + runtime data-source discovery (`resolveFormat`) |
 | `team.ts` | Showdown paste parsing, species/forme helpers |
 | `conditions.ts` | battle-conditions + per-Pokémon modifier model |
