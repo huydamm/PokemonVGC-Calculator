@@ -55,6 +55,9 @@ crits, Tera and Mega), **plus** the parts Showdown makes you do by hand:
   Mega formes from a dropdown in Champions.
 - **Edit any spread by hand.** Adjust EVs and nature directly for quick what-ifs.
   Champions uses its Stat Point system (0 to 32 per stat, 66 total) instead of EVs.
+- **Battle-style result.** Pick a move from the attacker's move menu and the
+  defender's HP bar drains to the damage range, right above the Pokémon, with
+  the exact rolls, % and KO chance beside it.
 - **Bulk heatmap.** For the featured move, the Heatmap tab shows a colour-banded
   grid of how much HP and defensive investment the defender needs to survive the hit.
 - **Pick your format.** Gen 9 OU, Pokémon Champions, or VGC 2026. Game type,
@@ -95,9 +98,10 @@ npm run dev      # start the dev server at http://localhost:5173
    Each slot's **Set** and **Spread** tabs hold its editors.
 4. Set weather, terrain, screens, stat stages and status in the **Field** tab.
    Active effects show as chips on the Calc tab.
-5. Read the **results**: click any move to feature it and see its full damage
-   roll, % of HP, KO chance, and the Showdown description; switch to **Heatmap**
-   for the bulk grid.
+5. Pick a move in the attacker's **move menu** (or click a row in the Moves
+   table): the defender's **HP bar** drains to show the damage range, % of HP,
+   KO chance and the Showdown description, right above the Pokémon. Switch to
+   **Heatmap** for the bulk grid.
 
 ## Tech Stack
 

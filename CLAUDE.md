@@ -89,6 +89,16 @@ and touch drags need a press-and-hold so the strip still scrolls. `npm run smoke
 drives the tabs and fails if results don't render, state resets across tabs,
 arrow-key tab focus breaks, or the page overflows (`WIDTH=400` for phone width).
 
+Move results are computed once in `services/results.ts` (`computeMoveResults`), and
+the selected move is `App` state shared by `MoveMenu` (top of the attacker slot),
+`HpPanel` (top of the defender slot, or above both slots below 760px so it stays in
+view on phones; colour bands and KO state from `services/hp.ts`), the Moves table and
+the Heatmap. A pick is stored with its attacker (`resolveFeatured`), so a new attacker
+or a swap falls back to the strongest move. The HP drain replays because the bar is
+keyed on defender + move; the defender's hit shake is bumped from the pick handler and
+alternates two identical keyframes so it restarts without remounting the card (a
+remount would reload the sprite).
+
 ## Live-battle Chrome extension (`extension/`)
 
 An MV3 overlay that reads a live `play.pokemonshowdown.com` battle and shows
