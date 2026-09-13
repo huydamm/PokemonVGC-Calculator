@@ -107,10 +107,12 @@ async function main() {
   // WIDTH=400 checks the phone layout (smoke fails on horizontal overflow).
   if (process.env.SHOT || process.env.WIDTH) {
     const width = Number(process.env.WIDTH) || 1200;
+    // A real phone-sized screen, so "visible without scrolling" is honest at WIDTH=400.
+    const height = Number(process.env.HEIGHT) || (width < 600 ? 800 : 1500);
     await cdp(
       browserWs,
       'Emulation.setDeviceMetricsOverride',
-      { width, height: 1500, deviceScaleFactor: 1, mobile: width < 600 },
+      { width, height, deviceScaleFactor: 1, mobile: width < 600 },
       sessionId,
     );
   }
@@ -171,11 +173,53 @@ async function main() {
       `JSON.stringify({h1: document.querySelector('h1')?.textContent, scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth})`,
     )
   ).result.value;
-  // Feature a non-default move so we can check it survives a tab round trip.
-  await run(`document.querySelector('.moves tbody tr:nth-child(3)')?.click()`);
+  // The result is visible without scrolling: HP panel and move menu sit at the top of the slots.
+  const aboveFold = (
+    await run(
+      `(()=>{window.scrollTo(0,0); const v=(s)=>{const e=[...document.querySelectorAll(s)].find(x=>x.getClientRects().length); if(!e) return false; const r=e.getBoundingClientRect(); return r.top>=0 && r.bottom<=window.innerHeight;}; return v('#main-panel-calc .hp-panel .hp-bar') && v('#main-panel-calc .move-menu');})()`,
+    )
+  ).result.value;
+  if (!aboveFold) {
+    const diag = await run(
+      `JSON.stringify({innerHeight: window.innerHeight, scrollY: window.scrollY, rects: ['#main-panel-calc .hp-panel .hp-bar', '#main-panel-calc .move-menu'].map((s)=>[...document.querySelectorAll(s)].map((e)=>{const r=e.getBoundingClientRect(); return {s, top: Math.round(r.top), bottom: Math.round(r.bottom), visible: e.getClientRects().length > 0};}))})`,
+    );
+    console.log('aboveFold diagnostics:', diag.result.value);
+  }
+  const menuButtons = await count('#main-panel-calc .move-menu .move-btn');
+  // Pick the 3rd move from the menu: the HP panel and the table's featured row follow it,
+  // and the pick must survive a tab round trip.
+  await run(`document.querySelectorAll('#main-panel-calc .move-menu .move-btn')[2]?.click()`);
+  await sleep(60);
+  // The new pick remounts the visible bar, so its drain animation should be running now.
+  const draining = (
+    await run(
+      `(()=>{const f=[...document.querySelectorAll('#main-panel-calc .hp-fill')].find(x=>x.getClientRects().length); return !!f && f.getAnimations().some(a=>a.playState==='running');})()`,
+    )
+  ).result.value;
+  if (!draining) {
+    const diag = await run(
+      `JSON.stringify([...document.querySelectorAll('#main-panel-calc .hp-fill')].map((f)=>({visible: f.getClientRects().length > 0, animations: f.getAnimations().map((a)=>a.playState), name: getComputedStyle(f).animationName})))`,
+    );
+    console.log('draining diagnostics:', diag.result.value);
+  }
+  await sleep(250);
+  // First VISIBLE match: desktop hides the phone copy of the HP panel (and vice versa).
+  const visible = (sel) => `([...document.querySelectorAll('${sel}')].find((x)=>x.getClientRects().length) ?? null)`;
+  const text = async (sel) => (await run(`${visible(sel)}?.textContent ?? null`)).result.value;
+  const picked = await text('#main-panel-calc .move-menu .move-btn:nth-child(3) .move-btn-name');
+  const featuredBefore = await text('#main-panel-calc .hp-panel .hp-move');
+  const tableFeatured = await text('#main-panel-calc .moves .featured-row td');
+  const hpNow = (await run(`${visible('#main-panel-calc .hp-bar')}?.getAttribute('aria-valuenow') ?? null`)).result.value;
+  // Editing the attacker (an Atk EV in its Spread tab) must keep the picked move.
+  await run(`document.querySelector('#attacker-slot-tab-spread')?.click()`);
+  await sleep(200);
+  await run(
+    `{const i=document.querySelectorAll('#attacker-slot-panel-spread .spread-stat input')[1]; if(i){const set=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set; set.call(i, String(Number(i.value)+4)); i.dispatchEvent(new Event('input',{bubbles:true}));}}`,
+  );
   await sleep(300);
-  const text = async (sel) => (await run(`document.querySelector('${sel}')?.textContent ?? null`)).result.value;
-  const featuredBefore = await text('.featured-move');
+  const featuredAfterEdit = await text('#main-panel-calc .hp-panel .hp-move');
+  await run(`document.querySelector('#attacker-slot-tab-set')?.click()`);
+  await sleep(200);
   // 4) Heatmap sub-tab renders its 25 cells after the skeleton frame
   await clickTab('heatmap');
   await waitFor(`document.querySelectorAll('.heatmap-table td').length === 25`, 10000);
@@ -187,7 +231,7 @@ async function main() {
   const fieldButtons = await count('#main-panel-field .seg-btns button');
   await clickTab('calc');
   await sleep(500);
-  const featuredAfter = await text('.featured-move');
+  const featuredAfter = await text('#main-panel-calc .hp-panel .hp-move');
   const heatStillOpen = await count('#main-panel-calc .heatmap-table td');
   // 6) ArrowRight on the active main tab moves focus to the next tab (not into a panel)
   await run(
@@ -200,7 +244,20 @@ async function main() {
 
   const summary = {
     result: {
-      value: JSON.stringify({ rows, heatCells, fieldButtons, featuredBefore, featuredAfter, keyFocus, ...JSON.parse(layout) }),
+      value: JSON.stringify({
+        rows,
+        heatCells,
+        fieldButtons,
+        aboveFold,
+        menuButtons,
+        hpNow,
+        draining,
+        featuredAfterEdit,
+        featuredBefore,
+        featuredAfter,
+        keyFocus,
+        ...JSON.parse(layout),
+      }),
     },
   };
   if (rows === 0) errors.push('assertion: no move rows rendered');
@@ -210,6 +267,14 @@ async function main() {
   if (!featuredBefore || featuredBefore !== featuredAfter)
     errors.push(`assertion: featured move changed across a tab switch (${featuredBefore} -> ${featuredAfter})`);
   if (heatStillOpen !== 25) errors.push('assertion: Heatmap sub-tab did not survive a Field round trip');
+  if (!aboveFold) errors.push('assertion: HP bar / move menu not visible without scrolling');
+  if (menuButtons !== Math.min(rows, 4)) errors.push(`assertion: move menu has ${menuButtons} buttons for ${rows} moves`);
+  if (!picked || picked !== featuredBefore || tableFeatured !== featuredBefore)
+    errors.push(`assertion: menu pick (${picked}) not shown in HP panel (${featuredBefore}) and table (${tableFeatured})`);
+  if (hpNow === null) errors.push('assertion: HP bar has no aria-valuenow');
+  if (!draining) errors.push('assertion: HP drain animation did not start after picking a new move');
+  if (featuredAfterEdit !== featuredBefore)
+    errors.push(`assertion: editing the attacker changed the picked move (${featuredBefore} -> ${featuredAfterEdit})`);
   if (keyFocus !== 'main-tab-team') errors.push(`assertion: ArrowRight focused ${keyFocus}, expected main-tab-team`);
 
   if (process.env.SHOT) {
