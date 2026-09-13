@@ -9,3 +9,4 @@ coverage
 
 # Local Claude Code skills/config (not part of the app)
 .claude/
+plans/
