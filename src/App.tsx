@@ -1,16 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
+  DragOverlay,
   useDraggable,
   useDroppable,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import type { PokemonSet } from '@pkmn/sets';
-import { DEFAULT_CONDITIONS, DEFAULT_MODS, type Conditions, type Mods } from './services/conditions';
+import {
+  DEFAULT_CONDITIONS,
+  DEFAULT_MODS,
+  activeConditionSummary,
+  type Conditions,
+  type Mods,
+} from './services/conditions';
 import { ConditionsPanel } from './components/ConditionsPanel';
 import { Results } from './components/Results';
 import {
@@ -36,28 +45,50 @@ import { RosterCard } from './components/RosterCard';
 import { OpponentPicker } from './components/OpponentPicker';
 import { OpponentEditor } from './components/OpponentEditor';
 import { SpreadEditor } from './components/SpreadEditor';
+import { Tabs } from './components/Tabs';
+import { Skeleton } from './components/Skeleton';
+import { SpriteImg } from './components/SpriteImg';
 import './app.css';
 
 type SlotId = 'attacker' | 'defender';
+type MainTab = 'calc' | 'team' | 'field';
 interface Assigned {
   mon: RosterMon;
   source: 'team' | 'opponent';
   suggestion?: SuggestedSet;
 }
 
-function DraggableCard({
-  mon,
-  onAssign,
-  showTera,
-}: {
-  mon: RosterMon;
-  onAssign: (s: SlotId) => void;
-  showTera: boolean;
-}) {
+/** A team sprite in the Calc tab's strip: drag it onto the Attacker or Defender slot. */
+function StripChip({ mon }: { mon: RosterMon }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: mon.id });
   return (
-    <div ref={setNodeRef} className={`drag-wrap${isDragging ? ' dragging' : ''}`} {...attributes} {...listeners}>
-      <RosterCard mon={mon} onAssign={onAssign} showTera={showTera} />
+    <div
+      ref={setNodeRef}
+      className={`strip-chip${isDragging ? ' dragging' : ''}`}
+      title={`Drag ${mon.displayName} onto a slot`}
+      {...attributes}
+      {...listeners}
+    >
+      <SpriteImg src={mon.spriteUrl} alt="" size={48} />
+      <span>{mon.displayName}</span>
+    </div>
+  );
+}
+
+/** Stands in for a slot while its common set is being fetched. */
+function SlotSkeleton() {
+  return (
+    <div className="slot-skeleton">
+      <div className="skel-card">
+        <Skeleton w="64px" h="64px" />
+        <div className="skel-lines">
+          <Skeleton w="60%" h="14px" />
+          <Skeleton w="40%" h="12px" />
+        </div>
+      </div>
+      {[0, 1, 2, 3].map((i) => (
+        <Skeleton key={i} w="100%" h="32px" />
+      ))}
     </div>
   );
 }
@@ -88,9 +119,19 @@ function Slot({
   onToggleTera: (v: boolean) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
+  const [view, setView] = useState<'set' | 'spread'>('set');
   const formes = format.megasEnabled && assigned ? formeOptions(assigned.mon.speciesName) : [];
   return (
-    <div ref={setNodeRef} className={`slot${isOver ? ' over' : ''}${assigned ? ' filled' : ''}`}>
+    <>
+      {/* Outside the aria-busy slot: some screen readers hold updates from a busy region. */}
+      <span className="sr-only" aria-live="polite">
+        {loading ? `Loading ${label.toLowerCase()} set` : assigned ? `${label}: ${assigned.mon.displayName}` : ''}
+      </span>
+      <div
+        ref={setNodeRef}
+        className={`slot${isOver ? ' over' : ''}${assigned ? ' filled' : ''}`}
+        aria-busy={loading ? true : undefined}
+      >
       <div className="slot-head">
         <span>{label}</span>
         {assigned && (
@@ -100,74 +141,100 @@ function Slot({
         )}
       </div>
 
-      {loading && <div className="slot-empty">Loading common set…</div>}
+      {loading && <SlotSkeleton />}
 
       {!loading && assigned && (
         <>
-          <RosterCard mon={assigned.mon} compact showTera={format.teraEnabled} />
-          {format.teraEnabled && assigned.mon.teraType && (
-            <label className={`tera-toggle${tera ? ' on' : ''}`}>
-              <input type="checkbox" checked={tera} onChange={(e) => onToggleTera(e.target.checked)} />
-              <span>Terastallize → {assigned.mon.teraType}</span>
-            </label>
-          )}
-          {formes.length > 1 && (
-            <label className="editor-field forme-pick">
-              <span>Forme</span>
-              <select
-                value={assigned.mon.speciesName}
-                onChange={(e) => {
-                  const next = applyForme(assigned.mon.set, e.target.value);
-                  // Reverting to base leaves no item; fill the most common one
-                  // that's legal in this format (usage can rank an illegal item).
-                  const legal = legalItems(format.id);
-                  const common = assigned.suggestion?.items?.find((o) => !legal || legal.includes(o.name))?.name;
-                  onForme(!next.item && common ? { ...next, item: common } : next);
-                }}
-              >
-                {formes.map((f) => (
-                  <option key={f.name} value={f.name}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {!isModeledAbility(assigned.mon.set.ability, format.id) && (
-            <p className="src-note muted">{assigned.mon.set.ability} is not modeled by the calc yet</p>
-          )}
-          {assigned.source === 'opponent' && assigned.suggestion && (
-            <>
-              {assigned.suggestion.note && <p className="src-note">⚠ {assigned.suggestion.note}</p>}
-              {assigned.suggestion.source === 'usage' && (
-                <p className="src-note muted">Auto-filled from {assigned.suggestion.species} usage stats</p>
-              )}
-              <OpponentEditor
-                set={assigned.mon.set}
-                suggestion={assigned.suggestion}
-                teraEnabled={format.teraEnabled}
-                megasEnabled={format.megasEnabled}
-                formatId={format.id}
-                onChange={onEdit}
-              />
-            </>
-          )}
-          <details className="spread-details">
-            <summary>Edit spread manually ({format.statSystem.unit})</summary>
-            <SpreadEditor set={assigned.mon.set} format={format} onChange={onEdit} />
-          </details>
+          <div className="slot-card" key={assigned.mon.speciesName}>
+            <RosterCard mon={assigned.mon} compact showTera={format.teraEnabled} />
+          </div>
+          <Tabs
+            idPrefix={`${id}-slot`}
+            ariaLabel={`${label} editor`}
+            size="sm"
+            active={view}
+            onChange={setView}
+            tabs={[
+              { id: 'set', label: 'Set' },
+              { id: 'spread', label: `Spread (${format.statSystem.unit})` },
+            ]}
+          >
+            {(v) =>
+              v === 'set' ? (
+                <>
+                  {format.teraEnabled && assigned.mon.teraType && (
+                    <label className={`tera-toggle${tera ? ' on' : ''}`}>
+                      <input type="checkbox" checked={tera} onChange={(e) => onToggleTera(e.target.checked)} />
+                      <span>Terastallize → {assigned.mon.teraType}</span>
+                    </label>
+                  )}
+                  {formes.length > 1 && (
+                    <label className="editor-field forme-pick">
+                      <span>Forme</span>
+                      <select
+                        value={assigned.mon.speciesName}
+                        onChange={(e) => {
+                          const next = applyForme(assigned.mon.set, e.target.value);
+                          // Reverting to base leaves no item; fill the most common one
+                          // that's legal in this format (usage can rank an illegal item).
+                          const legal = legalItems(format.id);
+                          const common = assigned.suggestion?.items?.find((o) => !legal || legal.includes(o.name))?.name;
+                          onForme(!next.item && common ? { ...next, item: common } : next);
+                        }}
+                      >
+                        {formes.map((f) => (
+                          <option key={f.name} value={f.name}>
+                            {f.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {!isModeledAbility(assigned.mon.set.ability, format.id) && (
+                    <p className="src-note muted">{assigned.mon.set.ability} is not modeled by the calc yet</p>
+                  )}
+                  {assigned.source === 'opponent' && assigned.suggestion && (
+                    <>
+                      {assigned.suggestion.note && <p className="src-note">⚠ {assigned.suggestion.note}</p>}
+                      {assigned.suggestion.source === 'usage' && (
+                        <p className="src-note muted">Auto-filled from {assigned.suggestion.species} usage stats</p>
+                      )}
+                      <OpponentEditor
+                        set={assigned.mon.set}
+                        suggestion={assigned.suggestion}
+                        teraEnabled={format.teraEnabled}
+                        megasEnabled={format.megasEnabled}
+                        formatId={format.id}
+                        onChange={onEdit}
+                      />
+                    </>
+                  )}
+                  {assigned.source === 'team' && !(format.teraEnabled && assigned.mon.teraType) && (
+                    <p className="src-note muted">Set from your pasted team. Edit the spread in the Spread tab.</p>
+                  )}
+                </>
+              ) : (
+                <SpreadEditor set={assigned.mon.set} format={format} onChange={onEdit} />
+              )
+            }
+          </Tabs>
         </>
       )}
 
       {!loading && !assigned && (
         <>
-          <div className="slot-empty">Drag a team Pokémon here, or search:</div>
+          <div className="slot-empty">Drag a team sprite here, or search:</div>
           <OpponentPicker onPick={onPick} formatId={format.id} />
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }
+
+/** dnd-kit's drop animation runs in JS, so the CSS reduced-motion rule can't stop it. */
+const prefersReducedMotion = () =>
+  typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export default function App() {
   const [formatId, setFormatId] = useState(DEFAULT_FORMAT_ID);
@@ -182,11 +249,21 @@ export default function App() {
   const [attackerMods, setAttackerMods] = useState<Mods>(DEFAULT_MODS);
   const [defenderMods, setDefenderMods] = useState<Mods>(DEFAULT_MODS);
   const [discoverError, setDiscoverError] = useState(false);
+  const [tab, setTab] = useState<MainTab>('calc');
+  const [dragId, setDragId] = useState<string | null>(null);
 
+  // Touch needs a press-and-hold so a swipe still scrolls the team strip.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
     useSensor(KeyboardSensor),
   );
+
+  /** Switch tabs from a control inside a panel, then move focus somewhere sensible. */
+  function goTab(next: MainTab, focusId: string) {
+    setTab(next);
+    requestAnimationFrame(() => document.getElementById(focusId)?.focus());
+  }
 
   useEffect(() => {
     let live = true;
@@ -206,6 +283,7 @@ export default function App() {
 
   const format = getFormat(formatId);
   const info = resolved?.find((r) => r.def.id === formatId);
+  const discovering = resolved === null && !discoverError;
   const setSlot = (slot: SlotId, a: Assigned | null) => (slot === 'attacker' ? setAttacker(a) : setDefender(a));
 
   // Re-derive auto-filled opponents when the format changes, so their set/stats
@@ -277,6 +355,7 @@ export default function App() {
   }
 
   function onDragEnd(e: DragEndEvent) {
+    setDragId(null);
     const over = e.over?.id;
     if (over !== 'attacker' && over !== 'defender') return;
     const mon = roster.find((m) => m.id === String(e.active.id));
@@ -306,8 +385,160 @@ export default function App() {
     [roster, format.megasEnabled],
   );
 
+  const fieldSummary = useMemo(
+    () => activeConditionSummary(conditions, attackerMods, defenderMods),
+    [conditions, attackerMods, defenderMods],
+  );
+
+  const calcView = (
+    <div className="calc-view">
+      <div className="roster-strip" aria-label="Your team">
+        {roster.length > 0 ? (
+          roster.map((mon) => <StripChip key={mon.id} mon={mon} />)
+        ) : (
+          <button type="button" className="strip-empty" onClick={() => goTab('team', 'paste')}>
+            + Paste a team in the Team tab
+          </button>
+        )}
+      </div>
+
+      <div className="slots">
+        <Slot
+          id="attacker"
+          label="Attacker"
+          assigned={attacker ?? undefined}
+          loading={loading === 'attacker'}
+          format={format}
+          tera={attackerMods.tera}
+          onClear={() => setAttacker(null)}
+          onPick={(s) => pickOpponent('attacker', s)}
+          onEdit={(set) => attacker && changeSet('attacker', attacker, set)}
+          onForme={(set) => attacker && changeSet('attacker', attacker, set)}
+          onToggleTera={(v) => setAttackerMods({ ...attackerMods, tera: v })}
+        />
+        <button
+          type="button"
+          className="swap"
+          onClick={swap}
+          title="Swap attacker/defender"
+          aria-label="Swap attacker and defender"
+          disabled={!attacker && !defender}
+        >
+          <span className="swap-icon" aria-hidden="true">
+            ⇄
+          </span>
+        </button>
+        <Slot
+          id="defender"
+          label="Defender"
+          assigned={defender ?? undefined}
+          loading={loading === 'defender'}
+          format={format}
+          tera={defenderMods.tera}
+          onClear={() => setDefender(null)}
+          onPick={(s) => pickOpponent('defender', s)}
+          onEdit={(set) => defender && changeSet('defender', defender, set)}
+          onForme={(set) => defender && changeSet('defender', defender, set)}
+          onToggleTera={(v) => setDefenderMods({ ...defenderMods, tera: v })}
+        />
+      </div>
+
+      <div className="field-summary">
+        <span className="field-summary-label">Field</span>
+        {fieldSummary.length > 0 ? (
+          fieldSummary.map((s) => (
+            <button key={s} type="button" className="summary-chip" onClick={() => goTab('field', 'main-tab-field')}>
+              {s}
+            </button>
+          ))
+        ) : (
+          <button type="button" className="summary-chip idle" onClick={() => goTab('field', 'main-tab-field')}>
+            No field effects
+          </button>
+        )}
+      </div>
+
+      {attacker && defender ? (
+        <Results
+          attacker={attacker.mon}
+          defender={defender.mon}
+          gameType={format.gameType}
+          formatId={format.id}
+          teraEnabled={format.teraEnabled}
+          conditions={conditions}
+          attackerMods={attackerMods}
+          defenderMods={defenderMods}
+        />
+      ) : (
+        <p className="muted empty-results">
+          Fill both slots: drag a team sprite in, or search a Pokémon to auto-fill its common set.
+        </p>
+      )}
+    </div>
+  );
+
+  const teamView = (
+    <div className="team-view">
+      <section className="paste-col">
+        <label htmlFor="paste" className="section-title">
+          Paste your team (Showdown export)
+        </label>
+        <textarea
+          id="paste"
+          value={pasteText}
+          onChange={(e) => loadPaste(e.target.value)}
+          placeholder="Paste a Showdown team export…"
+          spellCheck={false}
+        />
+        {errors.length > 0 && (
+          <ul className="errors">
+            {errors.map((er) => (
+              <li key={er}>{er}</li>
+            ))}
+          </ul>
+        )}
+        {megaRosterCount > 1 && (
+          <p className="warn">
+            ⚠ {megaRosterCount} Mega Pokémon on this team. Only one Mega Evolution is legal per team.
+          </p>
+        )}
+      </section>
+      <section className="roster" aria-label="Team cards">
+        {roster.map((mon) => (
+          <RosterCard
+            key={mon.id}
+            mon={mon}
+            showTera={format.teraEnabled}
+            onAssign={(s) => {
+              assignFromRoster(s, mon);
+              goTab('calc', 'main-tab-calc');
+            }}
+          />
+        ))}
+        {roster.length === 0 && <p className="muted">No Pokémon yet. Paste a Showdown team export.</p>}
+      </section>
+    </div>
+  );
+
+  const fieldView = (
+    <ConditionsPanel
+      conditions={conditions}
+      setConditions={setConditions}
+      attackerMods={attackerMods}
+      defenderMods={defenderMods}
+      setAttackerMods={setAttackerMods}
+      setDefenderMods={setDefenderMods}
+      onReset={resetConditions}
+    />
+  );
+
   return (
-    <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+    <DndContext
+      sensors={sensors}
+      onDragStart={(e: DragStartEvent) => setDragId(String(e.active.id))}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setDragId(null)}
+    >
       <main className="app">
         <header className="app-head">
           <h1>Damage Calculator</h1>
@@ -323,115 +554,51 @@ export default function App() {
                 </optgroup>
               ))}
             </select>
-            <span className="format-meta">
+            <span className="format-meta" aria-busy={discovering ? true : undefined}>
               {format.gameType} · Lv {format.level} · Megas {format.megasEnabled ? 'on' : 'off'}
-              {info?.stats.note && <em title={info.stats.note}> · ⚠ fallback data</em>}
+              {discovering ? (
+                <Skeleton className="meta-skel" w="6rem" h="0.75rem" />
+              ) : (
+                info?.stats.note && <em title={info.stats.note}> · ⚠ fallback data</em>
+              )}
             </span>
           </div>
         </header>
 
         {discoverError && (
           <p className="warn">
-            ⚠ Couldn't reach data.pkmn.cc — opponent auto-fill will use base stats until it's reachable. Calcs still work.
+            ⚠ Couldn't reach data.pkmn.cc, so opponent auto-fill uses base stats until it's reachable. Calcs still work.
           </p>
         )}
 
-        <div className="columns">
-          <section className="paste-col">
-            <label htmlFor="paste">Paste your team (Showdown export)</label>
-            <textarea
-              id="paste"
-              value={pasteText}
-              onChange={(e) => loadPaste(e.target.value)}
-              placeholder="Paste a Showdown team export…"
-              spellCheck={false}
-            />
-            {errors.length > 0 && (
-              <ul className="errors">
-                {errors.map((er) => (
-                  <li key={er}>{er}</li>
-                ))}
-              </ul>
-            )}
-            {megaRosterCount > 1 && (
-              <p className="warn">
-                ⚠ {megaRosterCount} Mega Pokémon on this team — only one Mega Evolution is legal per team.
-              </p>
-            )}
-            <div className="roster">
-              {roster.map((mon) => (
-                <DraggableCard key={mon.id} mon={mon} onAssign={(s) => assignFromRoster(s, mon)} showTera={format.teraEnabled} />
-              ))}
-              {roster.length === 0 && <p className="muted">No Pokémon yet. Paste a Showdown team export above.</p>}
-            </div>
-          </section>
-
-          <section className="calc-col">
-            <div className="slots">
-              <Slot
-                id="attacker"
-                label="Attacker"
-                assigned={attacker ?? undefined}
-                loading={loading === 'attacker'}
-                format={format}
-                tera={attackerMods.tera}
-                onClear={() => setAttacker(null)}
-                onPick={(s) => pickOpponent('attacker', s)}
-                onEdit={(set) => attacker && changeSet('attacker', attacker, set)}
-                onForme={(set) => attacker && changeSet('attacker', attacker, set)}
-                onToggleTera={(v) => setAttackerMods({ ...attackerMods, tera: v })}
-              />
-              <button
-                type="button"
-                className="swap"
-                onClick={swap}
-                title="Swap attacker/defender"
-                disabled={!attacker && !defender}
-              >
-                ⇄
-              </button>
-              <Slot
-                id="defender"
-                label="Defender"
-                assigned={defender ?? undefined}
-                loading={loading === 'defender'}
-                format={format}
-                tera={defenderMods.tera}
-                onClear={() => setDefender(null)}
-                onPick={(s) => pickOpponent('defender', s)}
-                onEdit={(set) => defender && changeSet('defender', defender, set)}
-                onForme={(set) => defender && changeSet('defender', defender, set)}
-                onToggleTera={(v) => setDefenderMods({ ...defenderMods, tera: v })}
-              />
-            </div>
-
-            {attacker && defender ? (
-              <Results
-                attacker={attacker.mon}
-                defender={defender.mon}
-                gameType={format.gameType}
-                formatId={format.id}
-                teraEnabled={format.teraEnabled}
-                conditions={conditions}
-                attackerMods={attackerMods}
-                defenderMods={defenderMods}
-              />
-            ) : (
-              <p className="muted">Fill both slots — drag a team card in, or search a Pokémon to auto-fill its common set.</p>
-            )}
-
-            <ConditionsPanel
-              conditions={conditions}
-              setConditions={setConditions}
-              attackerMods={attackerMods}
-              defenderMods={defenderMods}
-              setAttackerMods={setAttackerMods}
-              setDefenderMods={setDefenderMods}
-              onReset={resetConditions}
-            />
-          </section>
-        </div>
+        <Tabs
+          idPrefix="main"
+          ariaLabel="Calculator sections"
+          keepMounted
+          active={tab}
+          onChange={setTab}
+          tabs={[
+            { id: 'calc', label: 'Calc' },
+            { id: 'team', label: 'Team', badge: roster.length },
+            { id: 'field', label: 'Field', badge: fieldSummary.length },
+          ]}
+        >
+          {(t) => (t === 'calc' ? calcView : t === 'team' ? teamView : fieldView)}
+        </Tabs>
       </main>
+      {/* The sprite that follows the pointer (or keyboard) while dragging a team member. */}
+      <DragOverlay dropAnimation={prefersReducedMotion() ? null : undefined}>
+        {dragId &&
+          (() => {
+            const mon = roster.find((m) => m.id === dragId);
+            return mon ? (
+              <div className="strip-chip drag-overlay">
+                <SpriteImg src={mon.spriteUrl} alt="" size={48} />
+                <span>{mon.displayName}</span>
+              </div>
+            ) : null;
+          })()}
+      </DragOverlay>
     </DndContext>
   );
 }

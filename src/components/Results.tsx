@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { createPokemon, createMove, runCalc, buildField, withCrit, type DamageResult } from '../services/calc';
 import { setToPokemonOptions, type RosterMon } from '../services/team';
 import type { Conditions, Mods } from '../services/conditions';
 import { Heatmap } from './Heatmap';
+import { Tabs } from './Tabs';
 
 interface MoveResult {
   name: string;
@@ -74,6 +75,7 @@ export function Results({
   }, [rows]);
 
   const [featured, setFeatured] = useState<string | undefined>(undefined);
+  const [view, setView] = useState<'moves' | 'heatmap'>('moves');
   const featuredName = featured && rows.some((r) => r.name === featured) ? featured : defaultFeature;
   const featuredRow = rows.find((r) => r.name === featuredName);
 
@@ -82,23 +84,65 @@ export function Results({
   return (
     <div className="results">
       {featuredRow?.r && (
-        <div className="featured">
+        <div className="featured" key={featuredRow.name}>
           <div className="featured-head">
             <span className="featured-move">{featuredRow.name}</span>
             <span className="featured-range">
               {featuredRow.r.range[0]}–{featuredRow.r.range[1]} ({featuredRow.r.percent[0]}–{featuredRow.r.percent[1]}%)
             </span>
           </div>
-          <div className={`featured-ko${(featuredRow.r.ko.chance ?? 0) >= 1 ? ' guaranteed' : ''}`}>
-            {koText(featuredRow.r) || '—'}
-          </div>
+          {koText(featuredRow.r) && (
+            <div className={`featured-ko${(featuredRow.r.ko.chance ?? 0) >= 1 ? ' guaranteed' : ''}`}>
+              {koText(featuredRow.r)}
+            </div>
+          )}
           <code className="featured-desc">{featuredRow.r.desc}</code>
-          <details className="heatmap-details">
-            <summary>Bulk heatmap — does the defender survive?</summary>
+        </div>
+      )}
+
+      <Tabs
+        idPrefix="results"
+        ariaLabel="Results view"
+        size="sm"
+        active={view}
+        onChange={setView}
+        tabs={[
+          { id: 'moves', label: 'Moves' },
+          { id: 'heatmap', label: 'Heatmap' },
+        ]}
+      >
+        {(id) =>
+          id === 'moves' ? (
+            <table className="moves">
+              <thead>
+                <tr>
+                  <th>Move</th>
+                  <th>Damage</th>
+                  <th>%</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ name, r }, i) => (
+                  <tr
+                    key={name}
+                    className={name === featuredName ? 'featured-row' : ''}
+                    onClick={() => setFeatured(name)}
+                    style={{ cursor: 'pointer', '--i': Math.min(i, 12) } as CSSProperties}
+                  >
+                    <td>{name}</td>
+                    <td className="num">{r ? `${r.range[0]}–${r.range[1]}` : '-'}</td>
+                    <td className="num">{r ? `${r.percent[0]}–${r.percent[1]}%` : '-'}</td>
+                    <td className="ko">{r ? koText(r) : 'status / no damage'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
             <Heatmap
               attacker={attacker}
               defender={defender}
-              moveName={featuredRow.name}
+              moveName={featuredName ?? ''}
               gameType={gameType}
               formatId={formatId}
               teraEnabled={teraEnabled}
@@ -106,35 +150,9 @@ export function Results({
               attackerMods={attackerMods}
               defenderMods={defenderMods}
             />
-          </details>
-        </div>
-      )}
-
-      <table className="moves">
-        <thead>
-          <tr>
-            <th>Move</th>
-            <th>Damage</th>
-            <th>%</th>
-            <th>Result</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ name, r }) => (
-            <tr
-              key={name}
-              className={name === featuredName ? 'featured-row' : ''}
-              onClick={() => setFeatured(name)}
-              style={{ cursor: 'pointer' }}
-            >
-              <td>{name}</td>
-              <td>{r ? `${r.range[0]}–${r.range[1]}` : '—'}</td>
-              <td>{r ? `${r.percent[0]}–${r.percent[1]}%` : '—'}</td>
-              <td className="ko">{r ? koText(r) : 'status / no damage'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          )
+        }
+      </Tabs>
     </div>
   );
 }

@@ -70,3 +70,46 @@ export const DEFAULT_CONDITIONS: Conditions = {
 };
 
 export const DEFAULT_MODS: Mods = { boosts: {}, status: '', tera: false };
+
+const SIDE_LABELS: Record<keyof SideConditions, string> = {
+  lightScreen: 'Light Screen',
+  reflect: 'Reflect',
+  auroraVeil: 'Aurora Veil',
+  tailwind: 'Tailwind',
+  helpingHand: 'Helping Hand',
+  friendGuard: 'Friend Guard',
+};
+const RUIN_LABELS: [keyof Conditions, string][] = [
+  ['beadsOfRuin', 'Beads of Ruin'],
+  ['swordOfRuin', 'Sword of Ruin'],
+  ['tabletsOfRuin', 'Tablets of Ruin'],
+  ['vesselOfRuin', 'Vessel of Ruin'],
+];
+const STAGE_LABELS: Record<string, string> = { atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe' };
+
+/**
+ * Short labels for every non-default battle condition and modifier. Shown on the
+ * Calc tab (so settings moved to the Field tab are never invisible) and counted
+ * in the Field tab badge. Tera is left out: its toggle lives on the slot.
+ */
+export function activeConditionSummary(c: Conditions, attacker: Mods, defender: Mods): string[] {
+  const out: string[] = [];
+  if (c.weather) out.push(c.weather);
+  if (c.terrain) out.push(`${c.terrain} Terrain`);
+  if (c.gravity) out.push('Gravity');
+  if (c.crit) out.push('Critical hit');
+  for (const [key, label] of RUIN_LABELS) if (c[key]) out.push(label);
+  for (const [side, who] of [['attackerSide', 'attacker'], ['defenderSide', 'defender']] as const) {
+    for (const key of Object.keys(SIDE_LABELS) as (keyof SideConditions)[]) {
+      if (c[side][key]) out.push(`${SIDE_LABELS[key]} (${who})`);
+    }
+  }
+  for (const [mods, who] of [[attacker, 'attacker'], [defender, 'defender']] as const) {
+    for (const key of STAT_STAGE_KEYS) {
+      const v = mods.boosts[key] ?? 0;
+      if (v) out.push(`${STAGE_LABELS[key]} ${v > 0 ? '+' : ''}${v} (${who})`);
+    }
+    if (mods.status) out.push(`${STATUS_LABELS.find((s) => s.value === mods.status)?.label} (${who})`);
+  }
+  return out;
+}
