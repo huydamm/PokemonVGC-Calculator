@@ -26,11 +26,23 @@ describe('searchSpecies format legality filter', () => {
     expect(has(champ, 'Incineroar')).toBe(true);
   });
 
+  it('Champions roster tracks Reg M-C (Showdown champions mod)', () => {
+    const champ = searchSpecies('', 3000, 'gen9champions');
+    // Meowstic-F has no formats-data entry: it inherits Meowstic's legality.
+    for (const name of ['Baxcalibur', 'Golisopod', 'Salamence', 'Kingambit', 'Ninetales-Alola', 'Rotom-Wash', 'Basculegion-F', 'Meowstic-F']) {
+      expect(has(champ, name), name).toBe(true);
+    }
+    expect(has(champ, 'Mewtwo')).toBe(false);
+    expect(has(champ, 'Aegislash-Blade')).toBe(false); // battle-only forme
+    expect(has(champ, 'Absol-Mega-Z')).toBe(false); // Megas come from the forme toggle
+  });
+
   it('Champions limits the item pool; other formats are unrestricted', () => {
     const champ = legalItems('gen9champions');
     expect(champ).not.toBeNull();
     expect(champ).toContain('Leftovers');
     expect(champ).toContain('Mawilite'); // canonical stone name
+    for (const item of ['Absolite Z', 'Baxcalibrite', 'Rocky Helmet', 'Air Balloon']) expect(champ).toContain(item); // Reg M-C
     expect(champ).not.toContain('Booster Energy'); // no Paradox mons in Champions
     expect(legalItems('gen9ou')).toBeNull(); // whole item dex
   });

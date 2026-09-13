@@ -1,21 +1,28 @@
 /**
- * Precompute the legal species pool per app format, and emit it as a static
- * JSON the app ships (so @pkmn/sim stays a dev-only dependency and never bloats
- * the browser bundle).
+ * Precompute per-format legal species + items (and the Champions dex patch) as
+ * static JSON the app ships, so @pkmn/sim stays a dev-only dependency.
  *
- * Smogon singles/doubles pools come from @pkmn/sim's exact Showdown rules.
- * Pokémon Champions has no @pkmn/sim format and no data.pkmn.cc usage, so its
- * roster is a hand-maintained list transcribed from Bulbapedia (current
- * Regulation M-B: 208 species, no Legendaries/Mythicals). Update CHAMPIONS when
- * a new regulation ships. Megas are reached via the forme toggle, not the
- * species search, so the base-species pool is all the picker needs.
+ * - gen9ou / gen9doublesou: exact Showdown rules via @pkmn/sim.
+ * - gen9champions: Showdown's own `data/mods/champions` (formats-data + items),
+ *   fetched at a pinned commit, because @pkmn/sim ships no champions mod. Bump
+ *   SD_SHA when Showdown adds a new regulation.
+ * - champions-dex-patch.json: abilities/stats/types where Showdown's Champions
+ *   species differ from @pkmn/dex, which lags regulations (Reg M-C Z Megas).
+ *   Becomes `{}` on its own once @pkmn/dex catches up.
  *
- * Run: npx tsx scripts/gen-legal.ts
+ * Megas are reached via the forme toggle, so the species pool is non-Mega only.
+ *
+ * Run: npm run gen:legal
  */
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { Dex, TeamValidator, toID } from '@pkmn/sim';
+import { Dex, TeamValidator } from '@pkmn/sim';
+import { Dex as AppDex } from '@pkmn/dex';
+import { isMegaSpecies } from '../src/services/mega';
+
+// smogon/pokemon-showdown master, 2026-09-12 (Champions Regulation M-C).
+const SD_SHA = 'aa17ca0fac8bc5605df673bd8774c2d0e91efa43';
 
 // app format id -> Showdown sim format id (for the sim-derived pools)
 const SIM_FORMAT: Record<string, { id: string; level: number }> = {
@@ -51,101 +58,128 @@ function simLegalIds(simFormat: string, level: number): string[] {
   return ids.sort();
 }
 
-// Pokémon Champions roster (Bulbapedia, Reg M-B). Base species only.
-const CHAMPIONS = `
-Venusaur, Charizard, Blastoise, Beedrill, Pidgeot, Arbok, Pikachu, Raichu, Clefable, Ninetales,
-Vileplume, Arcanine, Alakazam, Machamp, Victreebel, Slowbro, Gengar, Kangaskhan, Starmie, Pinsir,
-Tauros, Gyarados, Ditto, Vaporeon, Jolteon, Flareon, Aerodactyl, Snorlax, Dragonite, Meganium,
-Typhlosion, Feraligatr, Ariados, Ampharos, Azumarill, Politoed, Espeon, Umbreon, Slowking, Forretress,
-Steelix, Qwilfish, Scizor, Heracross, Skarmory, Houndoom, Tyranitar, Sceptile, Blaziken, Swampert,
-Pelipper, Gardevoir, Sableye, Mawile, Aggron, Medicham, Manectric, Sharpedo, Camerupt, Torkoal,
-Altaria, Milotic, Castform, Banette, Chimecho, Absol, Glalie, Metagross, Torterra, Infernape,
-Empoleon, Staraptor, Luxray, Roserade, Rampardos, Bastiodon, Lopunny, Spiritomb, Garchomp, Lucario,
-Hippowdon, Toxicroak, Abomasnow, Weavile, Rhyperior, Leafeon, Glaceon, Gliscor, Mamoswine, Gallade,
-Froslass, Rotom, Serperior, Emboar, Samurott, Watchog, Liepard, Simisage, Simisear, Simipour,
-Musharna, Excadrill, Audino, Conkeldurr, Scolipede, Whimsicott, Krookodile, Scrafty, Cofagrigus, Garbodor,
-Zoroark, Reuniclus, Vanilluxe, Emolga, Eelektross, Chandelure, Beartic, Stunfisk, Golurk, Hydreigon,
-Volcarona, Chesnaught, Delphox, Greninja, Diggersby, Talonflame, Vivillon, Pyroar, Floette, Florges,
-Pangoro, Furfrou, Meowstic, Aegislash, Aromatisse, Slurpuff, Malamar, Barbaracle, Dragalge, Clawitzer,
-Heliolisk, Tyrantrum, Aurorus, Sylveon, Hawlucha, Dedenne, Goodra, Klefki, Trevenant, Gourgeist,
-Avalugg, Noivern, Decidueye, Incineroar, Primarina, Toucannon, Crabominable, Lycanroc, Toxapex, Mudsdale,
-Araquanid, Salazzle, Tsareena, Oranguru, Passimian, Mimikyu, Drampa, Kommo-o, Corviknight, Flapple,
-Appletun, Sandaconda, Polteageist, Hatterene, Grimmsnarl, Mr. Rime, Runerigus, Alcremie, Falinks, Morpeko,
-Dragapult, Wyrdeer, Kleavor, Basculegion, Sneasler, Overqwil, Meowscarada, Skeledirge, Quaquaval
-`;
-
-function championsIds(): string[] {
-  const dex = Dex.forGen(9);
-  const ids: string[] = [];
-  const missing: string[] = [];
-  for (const raw of CHAMPIONS.split(',').map((s) => s.trim()).filter(Boolean)) {
-    const sp = dex.species.get(raw);
-    if (sp?.exists) ids.push(sp.id);
-    else {
-      const id = toID(raw);
-      if (id) ids.push(id); // keep even if the gen9 dex flags it Past
-      missing.push(raw);
-    }
-  }
-  if (missing.length) console.warn(`  Champions: ${missing.length} not in gen9 dex (kept): ${missing.join(', ')}`);
-  return [...new Set(ids)].sort();
+async function sdFile(path: string): Promise<string> {
+  const url = `https://raw.githubusercontent.com/smogon/pokemon-showdown/${SD_SHA}/${path}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  return res.text();
 }
 
-// Pokémon Champions legal held items (Reg M-B, ~148). Formats without an entry
-// in legal-items.json are unrestricted (whole item dex).
-const CHAMPIONS_ITEMS = `
-Abomasite, Absolite, Aerodactylite, Aggronite, Alakazite, Altarianite, Ampharosite, Aspear Berry, Audinite, Babiri Berry,
-Banettite, Barbaracleite, Beedrillite, Big Root, Black Belt, Black Glasses, Blastoisinite, Blazikenite, BrightPowder, Cameruptite,
-Chandelurite, Charcoal, Charizardite X, Charizardite Y, Charti Berry, Cheri Berry, Chesnaughtite, Chesto Berry, Chilan Berry, Chimechite,
-Choice Scarf, Chople Berry, Clefablite, Coba Berry, Colbur Berry, Crabominite, Damp Rock, Delphoxite, Dragalgeite, Dragon Fang,
-Dragoninite, Drampanite, Eelektrossite, Emboarite, Excadrite, Expert Belt, Fairy Feather, Falinksite, Feraligite, Floettite,
-Focus Band, Focus Sash, Froslassite, Galladite, Garchompite, Gardevoirite, Gengarite, Glalitite, Glimmoranite, Golurkite,
-Greninjite, Gyaradosite, Haban Berry, Hard Stone, Hawluchanite, Heat Rock, Heracronite, Houndoominite, Icy Rock, Iron Ball,
-Kangaskhanite, Kasib Berry, Kebia Berry, King's Rock, Leftovers, Leppa Berry, Life Orb, Light Ball, Light Clay, Lopunnite,
-Lucarionite, Lum Berry, Magnet, Malamarite, Manectite, Mawileite, Medichamite, Meganiumite, Mental Herb, Meowsticite,
-Metagrossite, Metal Coat, Metronome, Miracle Seed, Muscle Band, Mystic Water, Never-Melt Ice, Occa Berry, Oran Berry, Passho Berry,
-Payapa Berry, Pecha Berry, Persim Berry, Pidgeotite, Pinsirite, Poison Barb, Pyroarite, Quick Claw, Raichunite X, Raichunite Y,
-Rawst Berry, Rindo Berry, Roseli Berry, Sablenite, Sceptileite, Scizorite, Scolipedeite, Scope Lens, Scovillainite, Scraftyite,
-Sharp Beak, Sharpedonite, Shed Shell, Shell Bell, Shuca Berry, Silk Scarf, SilverPowder, Sitrus Berry, Skarmorite, Slowbronite,
-Smooth Rock, Soft Sand, Spell Tag, Staraptorite, Starminite, Steelixite, Swampertite, Tanga Berry, TwistedSpoon, Tyranitarite,
-Venusaurite, Victreebelite, Wacan Berry, White Herb, Wide Lens, Wise Glasses, Yache Berry, Zoom Lens
-`;
+// Top-level `id: { ... }` entries of a flat Showdown data table -> id => body.
+// ponytail: regex over TS source, fine for these flat tables; import the TS if SD nests them.
+function sdTable(src: string): Map<string, string> {
+  return new Map([...src.matchAll(/\n\t(\w+): \{([^}]*)\}/g)].map((m) => [m[1], m[2]]));
+}
 
-function championsItems(): string[] {
+/** Champions-legal species from Showdown's champions formats-data. */
+function championsSpecies(formatsData: string) {
   const dex = Dex.forGen(9);
-  const champ = new Set(championsIds());
-  const names = new Set<string>();
-  // Canonical Mega Stones / Orbs for the champions-legal megas (the source
-  // list's stone spellings are unreliable, so derive them from the species).
+  const ids: string[] = []; // pickable (non-Mega, non-battle-only)
+  const all: string[] = []; // every legal species name, Megas included (for the patch)
+  const unknown: string[] = [];
+  const table = sdTable(formatsData);
+  for (const [id, body] of table) {
+    if (/isNonstandard: "/.test(body) || /tier: "Illegal"/.test(body)) continue;
+    const sp = dex.species.get(id);
+    if (!sp.exists) {
+      unknown.push(id);
+      continue;
+    }
+    all.push(sp.name);
+    if (!isMegaSpecies(sp) && !sp.battleOnly) ids.push(sp.id);
+  }
+  // Formes with no entry of their own inherit their base's legality in Showdown
+  // (Meowstic-F, Maushold-Four); cosmetic and battle-only formes stay out.
+  const legalBases = new Set(ids);
   for (const sp of dex.species.all()) {
-    if ((sp.isMega || sp.isPrimal) && sp.requiredItem && champ.has(toID(sp.baseSpecies))) {
-      names.add(sp.requiredItem);
+    if (!sp.exists || table.has(sp.id) || sp.battleOnly || isMegaSpecies(sp)) continue;
+    const base = dex.species.get(sp.baseSpecies);
+    if (legalBases.has(base.id) && !(base.cosmeticFormes ?? []).includes(sp.name)) {
+      ids.push(sp.id);
+      all.push(sp.name);
     }
   }
-  // Non-stone held items from the source list.
-  const missing: string[] = [];
-  for (const raw of CHAMPIONS_ITEMS.split(',').map((s) => s.trim()).filter(Boolean)) {
-    const it = dex.items.get(raw);
-    if (!it?.exists) missing.push(raw);
-    else if (!it.megaStone) names.add(it.name);
-  }
-  if (missing.length) console.warn(`  Champions items: ${missing.length} unresolved (skipped): ${missing.join(', ')}`);
-  return [...names].sort();
+  if (unknown.length) console.warn(`  Champions: ${unknown.length} ids not in dex (skipped): ${unknown.join(', ')}`);
+  return { ids: [...new Set(ids)].sort(), all };
 }
 
-const out: Record<string, string[]> = {};
-for (const [appId, { id, level }] of Object.entries(SIM_FORMAT)) {
-  out[appId] = simLegalIds(id, level);
-  console.log(`${appId} (${id}): ${out[appId].length} legal species`);
+/** Champions-legal items: champions items.ts overrides on top of the Gen 9 item pool. */
+function championsItems(itemsSrc: string): string[] {
+  const over = sdTable(itemsSrc);
+  const names: string[] = [];
+  for (const it of Dex.forGen(9).items.all()) {
+    const body = over.get(it.id);
+    const inherits = body === undefined || !/isNonstandard:/.test(body);
+    const legal = inherits ? it.exists && !it.isNonstandard : /isNonstandard: null/.test(body);
+    if (legal) names.push(it.name);
+  }
+  return [...new Set(names)].sort();
 }
-out.gen9champions = championsIds();
-console.log(`gen9champions (Bulbapedia Reg M-B): ${out.gen9champions.length} legal species`);
+
+type SpeciesPatch = { abilities?: Record<string, string>; baseStats?: Record<string, number>; types?: string[] };
+
+/** Fields where Showdown's pokedex differs from @pkmn/dex, for the given species. */
+function championsPatch(pokedex: string, names: string[]): Record<string, SpeciesPatch> {
+  const dex = AppDex.forGen(9);
+  const patch: Record<string, SpeciesPatch> = {};
+  const pairs = (src: string | undefined, re: RegExp) => [...(src ?? '').matchAll(re)].map((m) => [m[1], m[2]]);
+  for (const name of names) {
+    const start = pokedex.indexOf(`name: "${name}"`);
+    const sp = dex.species.get(name);
+    if (start < 0 || !sp?.exists) continue;
+    const body = pokedex.slice(start, pokedex.indexOf('\n\t},', start));
+    const sd: SpeciesPatch = {
+      abilities: Object.fromEntries(pairs(/abilities: \{([^}]*)\}/.exec(body)?.[1], /(\w+): "([^"]*)"/g)),
+      baseStats: Object.fromEntries(
+        pairs(/baseStats: \{([^}]*)\}/.exec(body)?.[1], /(\w+): (\d+)/g).map(([k, v]) => [k, Number(v)]),
+      ),
+      types: [...(/types: \[([^\]]*)\]/.exec(body)?.[1] ?? '').matchAll(/"([^"]*)"/g)].map((m) => m[1]),
+    };
+    const diff: SpeciesPatch = {};
+    for (const key of ['abilities', 'baseStats', 'types'] as const) {
+      const v = sd[key];
+      if (v && Object.keys(v).length && JSON.stringify(v) !== JSON.stringify(sp[key])) {
+        (diff as Record<string, unknown>)[key] = v;
+      }
+    }
+    if (Object.keys(diff).length) patch[sp.id] = diff;
+  }
+  return patch;
+}
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'services');
-writeFileSync(join(dir, 'legal-species.json'), JSON.stringify(out) + '\n');
-console.log(`wrote legal-species.json`);
+const prev = (file: string): Record<string, string[]> =>
+  existsSync(join(dir, file)) ? JSON.parse(readFileSync(join(dir, file), 'utf8')) : {};
 
-const items: Record<string, string[]> = { gen9champions: championsItems() };
+// A parse that silently yields far fewer entries means Showdown's layout moved.
+function guard(label: string, next: string[], old: string[] | undefined): void {
+  if (old && next.length < old.length * 0.8) {
+    throw new Error(`${label}: ${next.length} entries, previous ${old.length}. Showdown layout changed? Not writing.`);
+  }
+}
+
+const [formatsData, itemsSrc, pokedex] = await Promise.all([
+  sdFile('data/mods/champions/formats-data.ts'),
+  sdFile('data/mods/champions/items.ts'),
+  sdFile('data/pokedex.ts'),
+]);
+
+const species: Record<string, string[]> = {};
+for (const [appId, { id, level }] of Object.entries(SIM_FORMAT)) {
+  species[appId] = simLegalIds(id, level);
+  console.log(`${appId} (${id}): ${species[appId].length} legal species`);
+}
+const champ = championsSpecies(formatsData);
+species.gen9champions = champ.ids;
+const items: Record<string, string[]> = { gen9champions: championsItems(itemsSrc) };
+const patch = championsPatch(pokedex, champ.all);
+
+guard('gen9champions species', species.gen9champions, prev('legal-species.json').gen9champions);
+guard('gen9champions items', items.gen9champions, prev('legal-items.json').gen9champions);
+
+console.log(`gen9champions (Showdown ${SD_SHA.slice(0, 7)}): ${species.gen9champions.length} species, ${items.gen9champions.length} items`);
+console.log(`champions dex patch: ${Object.keys(patch).length} species (${Object.keys(patch).join(', ') || 'none'})`);
+writeFileSync(join(dir, 'legal-species.json'), JSON.stringify(species) + '\n');
 writeFileSync(join(dir, 'legal-items.json'), JSON.stringify(items) + '\n');
-console.log(`gen9champions items: ${items.gen9champions.length}`);
-console.log(`wrote legal-items.json`);
+writeFileSync(join(dir, 'champions-dex-patch.json'), JSON.stringify(patch, null, 1) + '\n');
+console.log('wrote legal-species.json, legal-items.json, champions-dex-patch.json');

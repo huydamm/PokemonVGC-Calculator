@@ -4,7 +4,7 @@
  */
 import { Teams, type PokemonSet } from '@pkmn/sets';
 import type { Data } from '@pkmn/sets';
-import { gen } from './data';
+import { gen, isMegaSpecies } from './data';
 import { spriteUrl } from './sprites';
 import type { PokemonOptions } from './calc';
 import legalSpecies from './legal-species.json';
@@ -59,10 +59,10 @@ export function setToPokemonOptions(set: PokemonSet): PokemonOptions {
  * The stone stays on the display set; it has no damage effect anyway.
  */
 function itemForCalc(set: PokemonSet): string | undefined {
-  if (!set.item) return undefined;
-  const sp = gen.species.get(set.species);
-  if (sp && (sp.isMega || sp.isPrimal) && sp.requiredItem === set.item) return undefined;
-  return set.item;
+  // Only items the Generation knows. That drops every stone (not admitted) even
+  // on a base forme (Champions usage ranks Garchompite first for Garchomp) and
+  // dex-lagging Champions items like Leek; any unknown item throws as a defender.
+  return set.item && gen.items.get(set.item) ? set.item : undefined;
 }
 
 const EMPTY_STATS = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
@@ -130,9 +130,7 @@ function index(): SpeciesEntry[] {
   if (speciesIndex) return speciesIndex;
   const out: SpeciesEntry[] = [];
   for (const sp of gen.species) {
-    if (sp.isMega || sp.isPrimal || sp.forme === 'Mega' || sp.forme === 'Mega-X' || sp.forme === 'Mega-Y' || sp.forme === 'Primal') {
-      continue;
-    }
+    if (isMegaSpecies(sp)) continue;
     out.push({ id: sp.id, name: sp.name, baseSpecies: sp.baseSpecies, forme: sp.forme, num: sp.num, types: [...sp.types] });
   }
   out.sort((a, b) => a.name.localeCompare(b.name));
@@ -177,21 +175,23 @@ export interface FormeOption {
 /** True if a species name resolves to a Mega/Primal forme in the data. */
 export function isMegaForme(speciesName: string): boolean {
   const sp = gen.species.get(speciesName);
-  return !!sp && !!(sp.isMega || sp.isPrimal);
+  return !!sp && isMegaSpecies(sp);
 }
 
 /**
- * Base forme + any Mega/Primal formes of a species present in the data.
- * Champions adds Megas that never shipped on cartridge; ones the data layer
- * doesn't know are simply absent here (the UI then can't offer them).
+ * Base forme + the Mega/Primal formes that evolve from it. Pairs by
+ * `changesFrom` (Floette-Mega comes from Floette-Eternal; Raichu-Alola has no
+ * Mega), falling back to the base species (Z Megas omit changesFrom). Megas the
+ * data layer doesn't admit are simply absent (the UI then can't offer them).
  */
 export function formeOptions(speciesName: string): FormeOption[] {
   const sp = gen.species.get(speciesName);
   if (!sp) return [];
-  const base = gen.species.get(sp.baseSpecies) ?? sp;
+  const megaFrom = (s: typeof sp): string => s.changesFrom ?? s.baseSpecies;
+  const base = (isMegaSpecies(sp) && gen.species.get(megaFrom(sp))) || sp;
   const out: FormeOption[] = [{ name: base.name, label: 'Base', isMega: false }];
   for (const cand of gen.species) {
-    if (cand.baseSpecies === base.name && (cand.isMega || cand.isPrimal)) {
+    if (isMegaSpecies(cand) && megaFrom(cand) === base.name) {
       out.push({ name: cand.name, label: (cand.forme || 'Mega').replace(/-/g, ' '), isMega: true });
     }
   }
@@ -207,12 +207,12 @@ export function applyForme(set: PokemonSet, speciesName: string): PokemonSet {
   const sp = gen.species.get(speciesName);
   if (!sp) return set;
   const abilities = Object.values(sp.abilities) as string[];
-  const isMega = sp.isMega || sp.isPrimal;
+  const isMega = isMegaSpecies(sp);
   const ability = isMega ? abilities[0] : abilities.includes(set.ability) ? set.ability : abilities[0];
   // To a Mega: force its stone. Reverting to base: drop the now-illegal stone
   // (caller fills a sensible replacement); keep any non-stone item.
   const old = gen.species.get(set.species);
-  const oldStone = old && (old.isMega || old.isPrimal) ? old.requiredItem : undefined;
+  const oldStone = old && isMegaSpecies(old) ? old.requiredItem : undefined;
   const item = isMega && sp.requiredItem ? sp.requiredItem : set.item === oldStone ? '' : set.item;
   return { ...set, species: sp.name, ability, item };
 }

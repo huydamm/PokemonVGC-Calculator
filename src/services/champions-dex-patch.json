@@ -1,0 +1,27 @@
+{
+ "absolmegaz": {
+  "abilities": {
+   "0": "Sharpness"
+  }
+ },
+ "garchompmegaz": {
+  "abilities": {
+   "0": "Levitate"
+  }
+ },
+ "lucariomegaz": {
+  "abilities": {
+   "0": "Aura Guard"
+  }
+ },
+ "golisopodmega": {
+  "abilities": {
+   "0": "Tough Claws"
+  }
+ },
+ "baxcaliburmega": {
+  "abilities": {
+   "0": "Thermal Exchange"
+  }
+ }
+}

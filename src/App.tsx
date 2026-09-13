@@ -31,7 +31,7 @@ import {
   type FormatDef,
 } from './services/formats';
 import { getCommonSet, suggestedToSet, type SuggestedSet } from './services/sets';
-import { legalItems } from './services/data';
+import { legalItems, isModeledAbility } from './services/data';
 import { RosterCard } from './components/RosterCard';
 import { OpponentPicker } from './components/OpponentPicker';
 import { OpponentEditor } from './components/OpponentEditor';
@@ -132,6 +132,9 @@ function Slot({
                 ))}
               </select>
             </label>
+          )}
+          {!isModeledAbility(assigned.mon.set.ability) && (
+            <p className="src-note muted">{assigned.mon.set.ability} is not modeled by the calc yet</p>
           )}
           {assigned.source === 'opponent' && assigned.suggestion && (
             <>
