@@ -18,6 +18,8 @@ import { Generations, type Generation, type Data } from '@pkmn/data';
 import legalSpecies from './legal-species.json';
 import dexPatch from './champions-dex-patch.json';
 import { isMegaSpecies } from './mega';
+import championsMoves from './champions-moves.json';
+import { CHAMPIONS_FORMAT, EMULATED_ABILITIES } from './champions-mechanics';
 
 export { isMegaSpecies };
 
@@ -26,6 +28,7 @@ export { isMegaSpecies };
 // the data layer can represent them (see gen-legal.ts). Per-format pickers still
 // gate on the same list, so Champions mons don't leak into OU/Doubles.
 const CHAMPIONS_IDS = new Set((legalSpecies as Record<string, string[]>).gen9champions ?? []);
+const CHAMPIONS_MOVES = new Set(championsMoves.admit);
 
 const toId = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -45,6 +48,9 @@ function existsWithMegas(d: Data): boolean {
   if ('isNonstandard' in d && d.isNonstandard) {
     // Re-admit Megas and Champions-roster species (`Past` in Gen 9); reject
     // everything else (items included: stones never reach the calc).
+    // Moves Champions re-enables (Meteor Assault, Snap Trap...), so they can be
+    // calculated; allMoves() hides them outside Champions.
+    if (d.kind === 'Move') return CHAMPIONS_MOVES.has(d.id);
     if (d.kind !== 'Species') return false;
     const sp = d as unknown as NonstandardSpecies;
     if (!isMegaSpecies(sp)) return CHAMPIONS_IDS.has(sp.id);
@@ -97,9 +103,13 @@ export function megaStones(): string[] {
   megaStoneCache = [...s].sort();
   return megaStoneCache;
 }
-export function allMoves(): string[] {
+let otherMovesCache: string[] | null = null;
+/** Every move in the dex; Champions-only re-enabled moves only for Champions. */
+export function allMoves(formatId?: string): string[] {
   if (!movesCache) movesCache = Array.from(gen.moves, (m) => m.name).sort();
-  return movesCache;
+  if (formatId === CHAMPIONS_FORMAT) return movesCache;
+  otherMovesCache ??= movesCache.filter((n) => !CHAMPIONS_MOVES.has(toId(n)));
+  return otherMovesCache;
 }
 export function allTypes(): string[] {
   if (!typesCache) typesCache = Array.from(gen.types, (t) => t.name).filter((n) => n !== '???').sort();
@@ -111,9 +121,9 @@ export function abilitiesFor(species: string): string[] {
   return sp ? (Object.values(sp.abilities).filter(Boolean) as string[]) : [];
 }
 
-/** False for an ability the dex (so the calc) doesn't know, e.g. Aura Guard. */
-export function isModeledAbility(name?: string): boolean {
-  return !name || !!gen.abilities.get(name);
+/** False for an ability the calc can't apply: unknown to the dex and not emulated for this format. */
+export function isModeledAbility(name?: string, formatId?: string): boolean {
+  return !name || !!gen.abilities.get(name) || (formatId === CHAMPIONS_FORMAT && EMULATED_ABILITIES.has(name));
 }
 
 /** The Mega Stone / Orb a forme requires to exist, if any (else undefined). */

@@ -13,6 +13,12 @@ import { calculate, Pokemon, Move, Field, Side, Result } from '@smogon/calc/dist
 import type { Generation, StatsTable, StatID } from '@pkmn/data';
 import { gen } from './data';
 import type { Conditions } from './conditions';
+import {
+  CHAMPIONS_FORMAT,
+  applyChampionsMechanics,
+  championsMoveOverrides,
+  type ChampionsSwap,
+} from './champions-mechanics';
 
 export { Pokemon, Move, Field, Side, Result };
 
@@ -52,8 +58,10 @@ export function createPokemon(
   } as unknown as PokemonCtorOpts);
 }
 
-export function createMove(name: string, generation: Generation = gen): Move {
-  return new Move(generation as never, name);
+/** Build a move; in Champions it carries Champions' base power, type and flags. */
+export function createMove(name: string, formatId?: string): Move {
+  const overrides = formatId === CHAMPIONS_FORMAT ? championsMoveOverrides(name) : undefined;
+  return new Move(gen as never, name, overrides ? { overrides: overrides as never } : undefined);
 }
 
 export type DamageResult = {
@@ -70,36 +78,48 @@ export type DamageResult = {
   ko: { n: number; chance: number | undefined; text: string };
 };
 
-/** Run a single calc against the shared gen and normalise the result. */
+/**
+ * Run a single calc against the shared gen and normalise the result. In
+ * Champions, Z-A abilities are swapped for engine stand-ins for this calc only
+ * (champions-mechanics.ts) and the description shows the real names.
+ */
 export function runCalc(
   attacker: Pokemon,
   defender: Pokemon,
   move: Move,
   field: Field = new Field({ gameType: 'Doubles' }),
-  generation: Generation = gen,
+  formatId?: string,
 ): DamageResult {
-  const result: Result = calculate(generation as never, attacker, defender, move, field);
-  const damage = result.damage as number | number[] | number[][];
-  // result.range() returns the correct combined [min, max] for every damage
-  // shape — including multi-hit moves whose damage is a number[][] (per hit).
-  const range = result.range();
-  const maxHP = defender.maxHP();
-  const pct = (n: number): number => Math.round((n / maxHP) * 1000) / 10;
-  let ko = { n: 0, chance: undefined as number | undefined, text: '' };
+  let champions: ChampionsSwap | null = null;
   try {
-    const k = result.kochance();
-    ko = { n: k.n, chance: k.chance, text: k.text };
-  } catch {
-    /* kochance can throw on exotic move/field combos; leave the default. */
+    champions = formatId === CHAMPIONS_FORMAT ? applyChampionsMechanics(attacker, defender, move, field) : null;
+    const result: Result = calculate(gen as never, attacker, defender, move, field);
+    const damage = result.damage as number | number[] | number[][];
+    // result.range() returns the correct combined [min, max] for every damage
+    // shape, including multi-hit moves whose damage is a number[][] (per hit).
+    const range = result.range();
+    const maxHP = defender.maxHP();
+    const pct = (n: number): number => Math.round((n / maxHP) * 1000) / 10;
+    let ko = { n: 0, chance: undefined as number | undefined, text: '' };
+    try {
+      const k = result.kochance();
+      ko = { n: k.n, chance: k.chance, text: k.text };
+    } catch {
+      /* kochance can throw on exotic move/field combos; leave the default. */
+    }
+    let desc = result.desc();
+    for (const [standIn, real] of champions?.swaps ?? []) desc = desc.split(standIn).join(real);
+    return {
+      damage,
+      range,
+      percent: [pct(range[0]), pct(range[1])],
+      desc,
+      defenderMaxHP: maxHP,
+      ko,
+    };
+  } finally {
+    champions?.undo();
   }
-  return {
-    damage,
-    range,
-    percent: [pct(range[0]), pct(range[1])],
-    desc: result.desc(),
-    defenderMaxHP: maxHP,
-    ko,
-  };
 }
 
 /** A doubles Field with VGC defaults (single source for the spread-move 0.75x). */
