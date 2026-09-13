@@ -105,7 +105,7 @@ export function OpponentEditor({
   const usageItems = legalItemSet ? suggestion.items.filter((o) => legalItemSet.has(o.name)) : suggestion.items;
   const itemOpts = forcedStone ? [{ name: forcedStone, pct: null }] : withAll(usageItems, items);
   const teraOpts = withAll(suggestion.teraTypes, allTypes());
-  const moveOpts = withAll(suggestion.moveOptions, allMoves());
+  const moveOpts = withAll(suggestion.moveOptions, allMoves(formatId));
 
   const spreadValue =
     suggestion.spreads.find((s) => s.nature === set.nature && evSummary(s.evs) === evSummary(set.evs))?.label ?? '';

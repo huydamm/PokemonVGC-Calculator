@@ -129,12 +129,13 @@ function bestMove(
   defender: Pokemon,
   moves: string[],
   field: ReturnType<typeof buildField>,
+  formatId: string,
 ): { move: string; percent: [number, number]; ko: string } | null {
   let best: { move: string; percent: [number, number]; ko: string } | null = null;
   for (const name of moves) {
     try {
-      const mv = createMove(name);
-      const r = runCalc(attacker, defender, mv, field);
+      const mv = createMove(name, formatId);
+      const r = runCalc(attacker, defender, mv, field, formatId);
       if (r.percent[1] <= 0) continue; // skip status / no-damage moves
       if (!best || r.percent[1] > best.percent[1]) {
         best = { move: mv.name, percent: r.percent, ko: r.ko.text };
@@ -179,7 +180,7 @@ export async function computeLive(
 
   for (const t of theirs) {
     for (const m of mine) {
-      const inc = bestMove(t.pokemon, m.pokemon, t.moves, incomingField);
+      const inc = bestMove(t.pokemon, m.pokemon, t.moves, incomingField, resolved.def.id);
       if (inc)
         incoming.push({
           attacker: t.mon.species, defender: m.mon.species, move: inc.move, percent: inc.percent,
@@ -189,7 +190,7 @@ export async function computeLive(
   }
   for (const m of mine) {
     for (const t of theirs) {
-      const out = bestMove(m.pokemon, t.pokemon, m.moves, outgoingField);
+      const out = bestMove(m.pokemon, t.pokemon, m.moves, outgoingField, resolved.def.id);
       if (out)
         outgoing.push({
           attacker: m.mon.species, defender: t.mon.species, move: out.move, percent: out.percent,
@@ -292,7 +293,7 @@ export async function runHypothetical(
     const defender =
       defSide === 'mine' ? mkMine(req.defender, req.defenderBoosts) : await mkOpp(req.defender, req.defenderBoosts);
     const field = buildField(snapshot.field.gameType, conditionsFor(snapshot.field, req.attackerSide === 'mine'));
-    const r = runCalc(attacker, defender, createMove(req.move), field);
+    const r = runCalc(attacker, defender, createMove(req.move, resolved.def.id), field, resolved.def.id);
     return {
       attacker: req.attacker,
       defender: req.defender,

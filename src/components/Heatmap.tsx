@@ -24,6 +24,7 @@ export function Heatmap({
   defender,
   moveName,
   gameType,
+  formatId,
   teraEnabled,
   conditions,
   attackerMods,
@@ -33,13 +34,14 @@ export function Heatmap({
   defender: RosterMon;
   moveName: string;
   gameType: 'Singles' | 'Doubles';
+  formatId: string;
   teraEnabled: boolean;
   conditions: Conditions;
   attackerMods: Mods;
   defenderMods: Mods;
 }) {
   const grid = useMemo(() => {
-    const move = createMove(moveName);
+    const move = createMove(moveName, formatId);
     if (move.category === 'Status') return null;
     const defKey: 'def' | 'spd' = move.category === 'Physical' ? 'def' : 'spd';
 
@@ -63,14 +65,14 @@ export function Heatmap({
           evs: { ...defender.set.evs, hp, [defKey]: defEv },
         });
         try {
-          return runCalc(atk, def, withCrit(createMove(moveName), conditions.crit), field).percent[1];
+          return runCalc(atk, def, withCrit(createMove(moveName, formatId), conditions.crit), field, formatId).percent[1];
         } catch {
           return 0;
         }
       }),
     );
     return { rows, defKey };
-  }, [attacker, defender, moveName, gameType, teraEnabled, conditions, attackerMods, defenderMods]);
+  }, [attacker, defender, moveName, gameType, formatId, teraEnabled, conditions, attackerMods, defenderMods]);
 
   if (!grid) return <p className="muted">No damage to map for this move.</p>;
 

@@ -20,6 +20,7 @@ export function Results({
   attacker,
   defender,
   gameType,
+  formatId,
   teraEnabled,
   conditions,
   attackerMods,
@@ -28,6 +29,7 @@ export function Results({
   attacker: RosterMon;
   defender: RosterMon;
   gameType: 'Singles' | 'Doubles';
+  formatId: string;
   teraEnabled: boolean;
   conditions: Conditions;
   attackerMods: Mods;
@@ -50,12 +52,12 @@ export function Results({
     const moves = (attacker.set.moves ?? []).filter(Boolean);
     return moves.map((name) => {
       try {
-        return { name, r: runCalc(atk, def, withCrit(createMove(name), conditions.crit), field) };
+        return { name, r: runCalc(atk, def, withCrit(createMove(name, formatId), conditions.crit), field, formatId) };
       } catch {
         return { name, r: null };
       }
     });
-  }, [attacker, defender, gameType, teraEnabled, conditions, attackerMods, defenderMods]);
+  }, [attacker, defender, gameType, formatId, teraEnabled, conditions, attackerMods, defenderMods]);
 
   // Feature the highest-damage move by default; let the user pick another.
   const defaultFeature = useMemo(() => {
@@ -98,6 +100,7 @@ export function Results({
               defender={defender}
               moveName={featuredRow.name}
               gameType={gameType}
+              formatId={formatId}
               teraEnabled={teraEnabled}
               conditions={conditions}
               attackerMods={attackerMods}

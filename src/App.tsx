@@ -133,7 +133,7 @@ function Slot({
               </select>
             </label>
           )}
-          {!isModeledAbility(assigned.mon.set.ability) && (
+          {!isModeledAbility(assigned.mon.set.ability, format.id) && (
             <p className="src-note muted">{assigned.mon.set.ability} is not modeled by the calc yet</p>
           )}
           {assigned.source === 'opponent' && assigned.suggestion && (
@@ -410,6 +410,7 @@ export default function App() {
                 attacker={attacker.mon}
                 defender={defender.mon}
                 gameType={format.gameType}
+                formatId={format.id}
                 teraEnabled={format.teraEnabled}
                 conditions={conditions}
                 attackerMods={attackerMods}

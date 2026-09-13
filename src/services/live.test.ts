@@ -77,4 +77,13 @@ describe('computeLive', () => {
     expect(res.estimated).toBe(true); // defender is the inferred opponent
     expect(res.ko).toBeTruthy();
   });
+
+  it('Champions battles calc with Champions move data (Psyshield Bash 90 BP)', async () => {
+    const champions = { def: getFormat('gen9champions'), stats: { id: null }, sets: { id: null } } as ResolvedFormat;
+    const req = { attacker: 'Incineroar', defender: 'Landorus', move: 'Psyshield Bash', attackerSide: 'mine' } as const;
+    const ch = await runHypothetical(req, snapshot, myPokemon, fakeSets, champions);
+    const ou = await runHypothetical(req, snapshot, myPokemon, fakeSets, resolved);
+    if ('error' in ch || 'error' in ou) throw new Error('calc failed');
+    expect(ch.percent[1]).toBeGreaterThan(ou.percent[1]);
+  });
 });
