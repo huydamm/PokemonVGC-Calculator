@@ -43,21 +43,27 @@ function simLegalIds(simFormat: string, level: number): string[] {
   const ids: string[] = [];
   for (const sp of tv.dex.species.all()) {
     if (!sp.exists || sp.isNonstandard === 'Future' || sp.isNonstandard === 'CAP') continue;
-    const set = {
-      name: sp.name,
-      species: sp.name,
-      level,
-      gender: '',
-      ability: Object.values(sp.abilities)[0] ?? '',
-      item: '',
-      moves: ['Tackle'],
-      evs: { hp: 4 },
-      ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
-      nature: 'Hardy',
-      shiny: false,
-    };
-    const problems = tv.validateSet(set as never, {});
-    if (!problems || !problems.some((m) => BANNED.test(m))) ids.push(sp.id);
+    // Legal if ANY ability passes: testing only the first one read a banned ability
+    // as a banned species (Garchomp's Sand Veil in OU dropped Garchomp).
+    const abilities = Object.values(sp.abilities).filter(Boolean) as string[];
+    const legal = (abilities.length ? abilities : ['']).some((ability) => {
+      const set = {
+        name: sp.name,
+        species: sp.name,
+        level,
+        gender: '',
+        ability,
+        item: '',
+        moves: ['Tackle'],
+        evs: { hp: 4 },
+        ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
+        nature: 'Hardy',
+        shiny: false,
+      };
+      const problems = tv.validateSet(set as never, {});
+      return !problems || !problems.some((m) => BANNED.test(m));
+    });
+    if (legal) ids.push(sp.id);
   }
   return ids.sort();
 }
