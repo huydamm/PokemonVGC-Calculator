@@ -5,8 +5,9 @@
  * Mega Evolution is legal) with the data.pkmn.cc sources used for opponent
  * auto-fill. Sources are *probed at runtime* (the brief: don't trust hardcoded
  * ids) with an ordered fallback chain, because what data.pkmn.cc actually serves
- * drifts: it publishes year-bucketed VGC stats (gen9vgc2026, no reg suffix) and
- * full gen9ou data, but — as of build — no Champions data at all.
+ * drifts: it publishes year-bucketed stats (gen9vgc2026, gen9championsvgc2026,
+ * no reg suffix) and full gen9ou data. Champions usage there is monthly and lags
+ * a new regulation, so Champions prefers championsbattledata.com (sets.ts).
  */
 export type GameType = 'Singles' | 'Doubles';
 
@@ -78,10 +79,10 @@ export const FORMATS: FormatDef[] = [
     megasEnabled: true,
     teraEnabled: false,
     statSystem: SP_SYSTEM,
-    // Champions usage data is not published on data.pkmn.cc; opponent auto-fill
-    // falls back to base stats. The legal roster is real (see gen-legal.ts).
-    statsCandidates: ['gen9championsvgc2026regmb', 'gen9vgc2026'],
-    setsCandidates: ['gen9championsvgc2026regmb', 'gen9vgc2026'],
+    // Fallback only: sets.ts tries championsbattledata.com first. data.pkmn.cc
+    // Champions stats are monthly (lag a new reg), then SV VGC as a last resort.
+    statsCandidates: ['gen9championsvgc2026', 'gen9vgc2026'],
+    setsCandidates: ['gen9championsvgc2026', 'gen9vgc2026'],
   },
 ];
 
@@ -89,6 +90,23 @@ export const DEFAULT_FORMAT_ID = 'gen9ou';
 
 export function getFormat(id: string): FormatDef {
   return FORMATS.find((f) => f.id === id) ?? FORMATS[0];
+}
+
+/**
+ * FormatDef for a live Showdown tier string (extension). Any Champions tier
+ * ("[Gen 9 Champions] VGC 2026 Reg M-C", BSS, Bo3) maps to the Champions format
+ * so it gets CBD usage, Megas and Stat Points; other tiers get a synthesized def
+ * that probes the tier's own data.pkmn.cc id first.
+ */
+export function liveFormatDef(tier: string, gameType: GameType, level: number): FormatDef {
+  const base = tier.toLowerCase().replace(/[^a-z0-9]/g, ''); // '[Gen 9] Doubles OU' -> 'gen9doublesou'
+  if (base.startsWith('gen9champions')) return { ...getFormat('gen9champions'), gameType };
+  const candidates = [...new Set([base, base.replace(/reg[a-z]+$/, ''), 'gen9vgc2026', 'gen9vgc2025', 'gen9ou'])];
+  return {
+    id: base, label: tier, group: 'live', gameType, level,
+    megasEnabled: false, teraEnabled: true, statSystem: EV_SYSTEM,
+    statsCandidates: candidates, setsCandidates: candidates,
+  };
 }
 
 const DATA_BASE = 'https://data.pkmn.cc';

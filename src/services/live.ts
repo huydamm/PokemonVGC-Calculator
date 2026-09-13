@@ -222,7 +222,7 @@ export interface HypoResult {
   estimated: boolean;
 }
 
-const battleLevel = (s: BattleSnapshot): number =>
+export const battleLevel = (s: BattleSnapshot): number =>
   s.mine.find(Boolean)?.level ?? s.theirs.find(Boolean)?.level ?? (s.field.gameType === 'Doubles' ? 50 : 100);
 
 /** Your mon by species at exact stats (works for bench mons too). */

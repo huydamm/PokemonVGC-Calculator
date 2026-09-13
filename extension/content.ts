@@ -6,10 +6,10 @@
  * Calc + network live here (not in MAIN) so fetch to data.pkmn.cc uses the
  * extension's host_permissions and bypasses Showdown's page CSP.
  */
-import { computeLive, runHypothetical, type MyPokemon, type LiveResult, type HypoRequest } from '../src/services/live';
+import { computeLive, runHypothetical, battleLevel, type MyPokemon, type LiveResult, type HypoRequest } from '../src/services/live';
 import type { BattleSnapshot } from '../src/services/battle';
 import { setService } from '../src/services/sets';
-import { resolveFormat, type FormatDef, type ResolvedFormat, EV_SYSTEM } from '../src/services/formats';
+import { resolveFormat, liveFormatDef, type ResolvedFormat } from '../src/services/formats';
 
 const TAG = 'vgc-calc';
 
@@ -54,17 +54,7 @@ function resolveLiveFormat(snapshot: BattleSnapshot): Promise<ResolvedFormat> {
   const tier = snapshot.tier || 'gen9';
   let p = formatCache.get(tier);
   if (!p) {
-    const base = tier.toLowerCase().replace(/[^a-z0-9]/g, ''); // '[Gen 9] Doubles OU' -> 'gen9doublesou'
-    const candidates = [base, base.replace(/reg.$/, ''), 'gen9vgc2026', 'gen9vgc2025', 'gen9ou'].filter(
-      (v, i, a) => a.indexOf(v) === i,
-    );
-    const def: FormatDef = {
-      id: base, label: tier, group: 'live', gameType: snapshot.field.gameType,
-      level: snapshot.mine.find(Boolean)?.level ?? (snapshot.field.gameType === 'Doubles' ? 50 : 100),
-      megasEnabled: false, teraEnabled: true, statSystem: EV_SYSTEM,
-      statsCandidates: candidates, setsCandidates: candidates,
-    };
-    p = resolveFormat(def);
+    p = resolveFormat(liveFormatDef(tier, snapshot.field.gameType, battleLevel(snapshot)));
     formatCache.set(tier, p);
   }
   return p;
