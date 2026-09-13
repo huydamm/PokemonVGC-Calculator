@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -48,6 +48,9 @@ import { SpreadEditor } from './components/SpreadEditor';
 import { Tabs } from './components/Tabs';
 import { Skeleton } from './components/Skeleton';
 import { SpriteImg } from './components/SpriteImg';
+import { MoveMenu } from './components/MoveMenu';
+import { HpPanel } from './components/HpPanel';
+import { computeMoveResults, resolveFeatured, type MovePick } from './services/results';
 import './app.css';
 
 type SlotId = 'attacker' | 'defender';
@@ -105,6 +108,8 @@ function Slot({
   onEdit,
   onForme,
   onToggleTera,
+  top,
+  cardClass,
 }: {
   id: SlotId;
   label: string;
@@ -117,6 +122,9 @@ function Slot({
   onEdit: (set: PokemonSet) => void;
   onForme: (set: PokemonSet) => void;
   onToggleTera: (v: boolean) => void;
+  /** Rendered above the Pokémon card: the move menu (attacker) or HP panel (defender). */
+  top?: ReactNode;
+  cardClass?: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   const [view, setView] = useState<'set' | 'spread'>('set');
@@ -145,7 +153,8 @@ function Slot({
 
       {!loading && assigned && (
         <>
-          <div className="slot-card" key={assigned.mon.speciesName}>
+          {top}
+          <div className={`slot-card${cardClass ? ` ${cardClass}` : ''}`} key={assigned.mon.speciesName}>
             <RosterCard mon={assigned.mon} compact showTera={format.teraEnabled} />
           </div>
           <Tabs
@@ -251,6 +260,15 @@ export default function App() {
   const [discoverError, setDiscoverError] = useState(false);
   const [tab, setTab] = useState<MainTab>('calc');
   const [dragId, setDragId] = useState<string | null>(null);
+  // Bumped whenever a slot gets a different Pokémon (not on edits), so a move pick
+  // and the hit shake stay tied to the matchup they were made on.
+  const [epochs, setEpochs] = useState({ attacker: 0, defender: 0 });
+  const bump = (...slots: SlotId[]) =>
+    setEpochs((e) => {
+      const next = { ...e };
+      for (const s of slots) next[s] += 1;
+      return next;
+    });
 
   // Touch needs a press-and-hold so a swipe still scrolls the team strip.
   const sensors = useSensors(
@@ -324,21 +342,31 @@ export default function App() {
     setErrors(e);
     setAttacker(null);
     setDefender(null);
+    bump('attacker', 'defender');
   }
 
   function assignFromRoster(slot: SlotId, mon: RosterMon) {
     const next: Assigned = { mon, source: 'team' };
     if (slot === 'attacker') {
       setAttacker(next);
-      if (defender?.source === 'team' && defender.mon.id === mon.id) setDefender(null);
+      bump('attacker');
+      if (defender?.source === 'team' && defender.mon.id === mon.id) {
+        setDefender(null);
+        bump('defender');
+      }
     } else {
       setDefender(next);
-      if (attacker?.source === 'team' && attacker.mon.id === mon.id) setAttacker(null);
+      bump('defender');
+      if (attacker?.source === 'team' && attacker.mon.id === mon.id) {
+        setAttacker(null);
+        bump('attacker');
+      }
     }
   }
 
   async function pickOpponent(slot: SlotId, species: string) {
     setLoading(slot);
+    bump(slot);
     try {
       const rf = info ?? (await resolveFormat(format));
       const suggestion = await getCommonSet(species, rf);
@@ -363,6 +391,8 @@ export default function App() {
   }
 
   function swap() {
+    setPick(undefined);
+    bump('attacker', 'defender');
     setAttacker(defender);
     setDefender(attacker);
     setAttackerMods(defenderMods);
@@ -390,6 +420,48 @@ export default function App() {
     [conditions, attackerMods, defenderMods],
   );
 
+  // Move results are computed once here and shared by the move menu, HP bar,
+  // Moves table and Heatmap; the selected move falls back to the strongest one.
+  const rows = useMemo(
+    () =>
+      attacker && defender
+        ? computeMoveResults({
+            attacker: attacker.mon.set,
+            defender: defender.mon.set,
+            attackerMods,
+            defenderMods,
+            conditions,
+            gameType: format.gameType,
+            formatId: format.id,
+            teraEnabled: format.teraEnabled,
+          })
+        : [],
+    [attacker, defender, attackerMods, defenderMods, conditions, format],
+  );
+  // A pick belongs to the attacker it was made on; a new attacker (or a swap)
+  // falls back to its strongest move.
+  const [pick, setPick] = useState<MovePick | undefined>(undefined);
+  const attackerKey = attacker ? `attacker-${epochs.attacker}` : undefined;
+  const featuredName = resolveFeatured(rows, pick, attackerKey);
+  const featuredRow = rows.find((r) => r.name === featuredName);
+
+  // Each new pick shakes the defender sprite. Alternating two identical
+  // keyframes restarts the animation without remounting the card.
+  const [hit, setHit] = useState<{ n: number; defender: number } | null>(null);
+  function pickMove(name: string) {
+    if (!attackerKey) return;
+    if (name !== featuredName) setHit((h) => ({ n: (h?.n ?? 0) + 1, defender: epochs.defender }));
+    setPick({ attackerKey, move: name });
+  }
+  // Only for the defender the pick was made against: a new defender just gets its mount pop.
+  const hitClass =
+    hit && hit.defender === epochs.defender && featuredRow?.r && featuredRow.r.range[1] > 0
+      ? hit.n % 2
+        ? 'hit-a'
+        : 'hit-b'
+      : undefined;
+  const showResult = !!(attacker && defender);
+
   const calcView = (
     <div className="calc-view">
       <div className="roster-strip" aria-label="Your team">
@@ -402,6 +474,13 @@ export default function App() {
         )}
       </div>
 
+      {/* Phones stack the slots, so the HP panel moves above both to stay in view (CSS toggles which copy shows). */}
+      {showResult && defender && (
+        <div className="hp-mobile">
+          <HpPanel defenderName={defender.mon.displayName} row={featuredRow} />
+        </div>
+      )}
+
       <div className="slots">
         <Slot
           id="attacker"
@@ -410,11 +489,15 @@ export default function App() {
           loading={loading === 'attacker'}
           format={format}
           tera={attackerMods.tera}
-          onClear={() => setAttacker(null)}
+          onClear={() => {
+            setAttacker(null);
+            bump('attacker');
+          }}
           onPick={(s) => pickOpponent('attacker', s)}
           onEdit={(set) => attacker && changeSet('attacker', attacker, set)}
           onForme={(set) => attacker && changeSet('attacker', attacker, set)}
           onToggleTera={(v) => setAttackerMods({ ...attackerMods, tera: v })}
+          top={showResult ? <MoveMenu rows={rows} selected={featuredName} onSelect={pickMove} /> : undefined}
         />
         <button
           type="button"
@@ -435,11 +518,16 @@ export default function App() {
           loading={loading === 'defender'}
           format={format}
           tera={defenderMods.tera}
-          onClear={() => setDefender(null)}
+          onClear={() => {
+            setDefender(null);
+            bump('defender');
+          }}
           onPick={(s) => pickOpponent('defender', s)}
           onEdit={(set) => defender && changeSet('defender', defender, set)}
           onForme={(set) => defender && changeSet('defender', defender, set)}
           onToggleTera={(v) => setDefenderMods({ ...defenderMods, tera: v })}
+          top={showResult && defender ? <HpPanel defenderName={defender.mon.displayName} row={featuredRow} /> : undefined}
+          cardClass={showResult ? hitClass : undefined}
         />
       </div>
 
@@ -460,6 +548,9 @@ export default function App() {
 
       {attacker && defender ? (
         <Results
+          rows={rows}
+          featuredName={featuredName}
+          onFeature={pickMove}
           attacker={attacker.mon}
           defender={defender.mon}
           gameType={format.gameType}

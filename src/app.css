@@ -60,7 +60,6 @@ button {
 /* Panels */
 .slot.filled,
 .card,
-.featured,
 .moves,
 .cond-card,
 .paste-col,
@@ -78,7 +77,8 @@ button {
 .swap,
 .strip-empty,
 .summary-chip,
-.strip-chip {
+.strip-chip,
+.move-btn {
   background: var(--panel-2);
   border: var(--px) solid var(--ink);
   box-shadow: inset var(--px) var(--px) 0 var(--panel-hi), 2px 2px 0 var(--ink);
@@ -93,7 +93,8 @@ button {
 .swap:hover:not(:disabled),
 .strip-empty:hover,
 .summary-chip:hover,
-.strip-chip:hover {
+.strip-chip:hover,
+.move-btn:hover {
   background: var(--panel-hi);
 }
 .tab:active,
@@ -103,7 +104,8 @@ button {
 .swap:active:not(:disabled),
 .strip-empty:active,
 .summary-chip:active,
-.strip-chip:active {
+.strip-chip:active,
+.move-btn:active {
   transform: translate(2px, 2px);
   box-shadow: inset var(--px) var(--px) 0 var(--panel-lo);
 }
@@ -600,51 +602,209 @@ textarea {
   color: var(--accent-2);
 }
 
-/* ---- Results ---- */
+/* ---- Results (details under the slots) ---- */
 .results {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
 }
-.featured {
-  border-left: 6px solid var(--accent);
-  padding: 0.85rem 1rem;
-  animation: px-in 160ms steps(4, end) both;
+
+/* ---- Attacker move menu ---- */
+.move-menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 0.7rem;
 }
-.featured-head {
+.move-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.35rem 0.55rem 0.35rem 0.65rem;
+  text-align: left;
+  border-left: 6px solid var(--move-type, var(--panel-hi));
+}
+.move-btn-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.move-btn-pct {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--muted);
+}
+.move-btn[aria-checked='true'] {
+  background: var(--accent-2);
+  color: var(--ink);
+  box-shadow: inset var(--px) var(--px) 0 #ffe08a, 2px 2px 0 var(--ink);
+}
+.move-btn[aria-checked='true'] .move-btn-pct {
+  color: var(--ink);
+}
+
+/* ---- Defender HP panel ---- */
+.hp-panel {
+  background: var(--panel-2);
+  border: var(--px) solid var(--ink);
+  box-shadow: inset var(--px) var(--px) 0 var(--panel-hi), 2px 2px 0 var(--ink);
+  padding: 0.6rem 0.7rem 0.55rem;
+  margin-bottom: 0.7rem;
+}
+.hp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+.hp-move {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+.hp-range-num {
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--accent-2);
+  white-space: nowrap;
+}
+.hp-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.hp-label {
+  min-width: 1.7rem;
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  color: var(--amber);
+}
+.hp-track {
+  position: relative;
+  flex: 1;
+  height: 14px;
+  overflow: hidden;
+  background: var(--panel-lo);
+  border: var(--px) solid var(--ink);
+  box-shadow: inset var(--px) var(--px) 0 #000;
+}
+.hp-range,
+.hp-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
+/* The drain runs once per mount: HpPanel keys the bar on defender + move, so a
+   new pick replays it, while later edits (EVs, field) keep the element and just
+   transition to the new base width. Six chunky steps keep small hits visible. */
+.hp-range {
+  width: var(--left-min);
+  background: var(--hp-soft);
+  transition: width 200ms steps(4, end);
+  animation: hp-drain-range 600ms steps(6, end);
+}
+.hp-fill {
+  width: var(--left-max);
+  background: var(--hp-color);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.25);
+  transition: width 200ms steps(4, end), background 200ms steps(2, end);
+  animation: hp-drain 600ms steps(6, end);
+}
+/* Phones: the HP panel above both slots replaces the one inside the defender slot.
+   The media query must come after the base rule, or the base rule wins. */
+.hp-mobile {
+  display: none;
+}
+@media (max-width: 760px) {
+  .hp-mobile {
+    display: block;
+  }
+  .hp-mobile .hp-panel {
+    margin-bottom: 0;
+  }
+  .slot .hp-panel {
+    display: none;
+  }
+  /* Tighter vertical rhythm so the HP bar and move menu fit a 360x640 screen. */
+  .app-head {
+    padding-bottom: 0.6rem;
+    margin-bottom: 0.6rem;
+  }
+  .tabs-lg > .tabpanel {
+    margin-top: 0.6rem;
+  }
+  .calc-view {
+    gap: 0.6rem;
+  }
+}
+.band-green {
+  --hp-color: #5cbf4a;
+  --hp-soft: #2f5a28;
+}
+.band-yellow {
+  --hp-color: #f8c03a;
+  --hp-soft: #6b5418;
+}
+.band-red {
+  --hp-color: #e5483b;
+  --hp-soft: #5e231e;
+}
+.hp-bar.ko .hp-label {
+  color: var(--red);
+  animation: px-blink 600ms steps(2, end) 600ms infinite;
+}
+.hp-result {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.3rem 0.8rem;
+  margin-top: 0.45rem;
 }
-.featured-move {
-  font-family: var(--font-display);
-  font-size: 0.8rem;
-  line-height: 1.5;
-}
-.featured-range {
+.hp-pct {
   font-family: var(--font-mono);
-  font-size: 1.7rem;
+  font-size: 1.35rem;
   line-height: 1;
-  color: var(--accent-2);
 }
-.featured-ko {
-  margin: 0.45rem 0;
-  font-size: 1.05rem;
+.hp-ko {
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--amber);
 }
-.featured-ko.guaranteed {
+.hp-ko.guaranteed {
   color: var(--green);
 }
-.featured-desc {
+.hp-desc {
   display: block;
+  margin-top: 0.4rem;
   font-family: var(--font-mono);
-  font-size: 1.15rem;
-  line-height: 1.15;
+  font-size: 1.05rem;
+  line-height: 1.1;
   color: var(--muted);
   word-break: break-word;
+}
+
+/* Hit reaction: two identical keyframes, alternated from App, so each new pick restarts it. */
+.slot-card.hit-a .card-sprite {
+  animation: px-hit-a 280ms steps(4, end);
+}
+.slot-card.hit-b .card-sprite {
+  animation: px-hit-b 280ms steps(4, end);
+}
+.slot-card.hit-a .card-sprite img.loaded {
+  animation: px-flash-a 280ms steps(2, end);
+}
+.slot-card.hit-b .card-sprite img.loaded {
+  animation: px-flash-b 280ms steps(2, end);
 }
 
 /* ---- Moves table ---- */
@@ -1037,6 +1197,49 @@ textarea::-webkit-scrollbar-thumb,
 @keyframes px-blink {
   50% {
     opacity: 0.45;
+  }
+}
+@keyframes hp-drain {
+  from {
+    width: 100%;
+    background: #5cbf4a;
+  }
+}
+@keyframes hp-drain-range {
+  from {
+    width: 100%;
+  }
+}
+@keyframes px-hit-a {
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+@keyframes px-hit-b {
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+@keyframes px-flash-a {
+  50% {
+    opacity: 0.3;
+  }
+}
+@keyframes px-flash-b {
+  50% {
+    opacity: 0.3;
   }
 }
 

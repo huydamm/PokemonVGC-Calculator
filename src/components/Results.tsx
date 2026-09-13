@@ -1,23 +1,18 @@
-import { useMemo, useState, type CSSProperties } from 'react';
-import { createPokemon, createMove, runCalc, buildField, withCrit, type DamageResult } from '../services/calc';
-import { setToPokemonOptions, type RosterMon } from '../services/team';
+import { useState, type CSSProperties } from 'react';
+import type { RosterMon } from '../services/team';
 import type { Conditions, Mods } from '../services/conditions';
+import { koText, type MoveResult } from '../services/results';
 import { Heatmap } from './Heatmap';
 import { Tabs } from './Tabs';
 
-interface MoveResult {
-  name: string;
-  r: DamageResult | null;
-}
-
-/** KO summary text: prefer the engine's, else the tail of the description. */
-function koText(r: DamageResult): string {
-  if (r.ko.text) return r.ko.text;
-  const tail = r.desc.split('--')[1]?.trim();
-  return tail || (r.range[1] === 0 ? 'no damage' : '');
-}
-
+/**
+ * Details under the slots: every move's roll (Moves) and the bulk grid (Heatmap).
+ * Rows and the selected move come from App, shared with the move menu and HP bar.
+ */
 export function Results({
+  rows,
+  featuredName,
+  onFeature,
   attacker,
   defender,
   gameType,
@@ -27,6 +22,9 @@ export function Results({
   attackerMods,
   defenderMods,
 }: {
+  rows: MoveResult[];
+  featuredName?: string;
+  onFeature: (name: string) => void;
   attacker: RosterMon;
   defender: RosterMon;
   gameType: 'Singles' | 'Doubles';
@@ -36,70 +34,12 @@ export function Results({
   attackerMods: Mods;
   defenderMods: Mods;
 }) {
-  const rows = useMemo<MoveResult[]>(() => {
-    const atk = createPokemon(attacker.set.species, {
-      ...setToPokemonOptions(attacker.set),
-      teraType: teraEnabled && attackerMods.tera ? attacker.set.teraType : undefined,
-      boosts: attackerMods.boosts,
-      status: attackerMods.status || undefined,
-    });
-    const def = createPokemon(defender.set.species, {
-      ...setToPokemonOptions(defender.set),
-      teraType: teraEnabled && defenderMods.tera ? defender.set.teraType : undefined,
-      boosts: defenderMods.boosts,
-      status: defenderMods.status || undefined,
-    });
-    const field = buildField(gameType, conditions);
-    const moves = (attacker.set.moves ?? []).filter(Boolean);
-    return moves.map((name) => {
-      try {
-        return { name, r: runCalc(atk, def, withCrit(createMove(name, formatId), conditions.crit), field, formatId) };
-      } catch {
-        return { name, r: null };
-      }
-    });
-  }, [attacker, defender, gameType, formatId, teraEnabled, conditions, attackerMods, defenderMods]);
-
-  // Feature the highest-damage move by default; let the user pick another.
-  const defaultFeature = useMemo(() => {
-    let best = 0;
-    let idx = 0;
-    rows.forEach((row, i) => {
-      const top = row.r?.range[1] ?? 0;
-      if (top > best) {
-        best = top;
-        idx = i;
-      }
-    });
-    return rows[idx]?.name;
-  }, [rows]);
-
-  const [featured, setFeatured] = useState<string | undefined>(undefined);
   const [view, setView] = useState<'moves' | 'heatmap'>('moves');
-  const featuredName = featured && rows.some((r) => r.name === featured) ? featured : defaultFeature;
-  const featuredRow = rows.find((r) => r.name === featuredName);
 
   if (rows.length === 0) return <p className="muted">Attacker has no moves selected.</p>;
 
   return (
     <div className="results">
-      {featuredRow?.r && (
-        <div className="featured" key={featuredRow.name}>
-          <div className="featured-head">
-            <span className="featured-move">{featuredRow.name}</span>
-            <span className="featured-range">
-              {featuredRow.r.range[0]}–{featuredRow.r.range[1]} ({featuredRow.r.percent[0]}–{featuredRow.r.percent[1]}%)
-            </span>
-          </div>
-          {koText(featuredRow.r) && (
-            <div className={`featured-ko${(featuredRow.r.ko.chance ?? 0) >= 1 ? ' guaranteed' : ''}`}>
-              {koText(featuredRow.r)}
-            </div>
-          )}
-          <code className="featured-desc">{featuredRow.r.desc}</code>
-        </div>
-      )}
-
       <Tabs
         idPrefix="results"
         ariaLabel="Results view"
@@ -123,17 +63,17 @@ export function Results({
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ name, r }, i) => (
+                {rows.map(({ name, r, category }, i) => (
                   <tr
                     key={name}
                     className={name === featuredName ? 'featured-row' : ''}
-                    onClick={() => setFeatured(name)}
+                    onClick={() => onFeature(name)}
                     style={{ cursor: 'pointer', '--i': Math.min(i, 12) } as CSSProperties}
                   >
                     <td>{name}</td>
                     <td className="num">{r ? `${r.range[0]}–${r.range[1]}` : '-'}</td>
                     <td className="num">{r ? `${r.percent[0]}–${r.percent[1]}%` : '-'}</td>
-                    <td className="ko">{r ? koText(r) : 'status / no damage'}</td>
+                    <td className="ko">{r ? koText(r) : category === 'Status' ? 'status' : 'no effect (0%)'}</td>
                   </tr>
                 ))}
               </tbody>
