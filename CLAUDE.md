@@ -18,33 +18,44 @@ Three formats, two groups: **Gen 9 OU** (`gen9ou` Singles, `gen9doublesou`
 Doubles, both Lv100, Tera on, no Megas) and **Pokémon Champions**
 (`gen9champions`, Doubles Lv50, Megas on, no Tera). Champions has no
 data.pkmn.cc usage, so opponent auto-fill pulls real Champions usage from
-championsbattledata.com (`champions-sets.ts`), falling back to `gen9vgc2026`
-and then base stats for the handful of mons CBD doesn't cover.
+championsbattledata.com (`champions-sets.ts`), falling back to data.pkmn.cc
+`gen9championsvgc2026` (monthly, lags a new reg), then `gen9vgc2026`, then base stats.
 
 Per-format legal **species** and **items** are precomputed by
 `scripts/gen-legal.ts` into `src/services/legal-species.json` and
 `legal-items.json`. OU/Doubles pools come from `@pkmn/sim`'s
-exact Showdown rules (dev-only dep, never bundled). Champions has no sim format,
-so its roster and item list are hand-maintained from Bulbapedia / MetaVGC
-(current Reg M-B); its Mega Stones are derived canonically from the mega species.
-`data.ts` re-admits the Champions roster because many of its mons are flagged
-`Past` in the SV dex. Regenerate with `npm run gen:legal` when a new regulation
-ships or `@pkmn/*` bumps.
+exact Showdown rules (dev-only dep, never bundled). `@pkmn/sim` has no champions
+mod, so the Champions roster and item pool are parsed from Showdown's own
+`data/mods/champions` (formats-data + items) at a pinned commit (`SD_SHA`, current
+Reg M-C). The same script writes `champions-dex-patch.json`: abilities/stats/types
+where Showdown's Champions species differ from `@pkmn/dex`, which lags new regs
+(Reg M-C Z Megas); `data.ts` applies it before building the `Generation`, and it
+empties itself once `@pkmn/dex` catches up. `data.ts` re-admits the Champions
+roster because many of its mons are flagged `Past` in the SV dex. On a new
+regulation: bump `SD_SHA`, run `npm run gen:legal` (it refuses to write if a pool
+shrinks by more than 20%).
 
 **Megas:** the forme toggle mega-evolves by species (`applyForme`), which also
 forces the Mega's one ability and its required stone item, and drops the stale
-stone when reverting to base. The stone is display-only: `setToPokemonOptions`
+stone when reverting to base. Z and gendered Megas (formes `Mega-Z`, `M-Mega`)
+have no `isMega` flag in the dex, so always detect Megas with `isMegaSpecies`
+(`mega.ts`, re-exported by `data.ts`), never `sp.isMega`, and pair a Mega with
+its base via `changesFrom` (Floette-Mega comes from Floette-Eternal). Anything
+the dex doesn't know never reaches the calc: `itemForCalc` drops unknown items
+(every stone, Leek) and the UI flags unknown abilities (`isModeledAbility`,
+e.g. Aura Guard). Champions move/ability retunes in Showdown's champions mod are
+not applied; calcs use SV numbers. The stone is display-only: `setToPokemonOptions`
 strips it before the calc, because a held stone crashes the adaptable engine
 (no mega-item data). The opponent editor locks a Mega's item and hides usage %
 on single-option fields.
 
 | Service | Role |
 | --- | --- |
-| `data.ts` | the single shared Gen 9 `Generation` (Megas + Champions roster re-admitted); `legalItems`, `megaStones`, `requiredItemFor` |
+| `data.ts` | the single shared Gen 9 `Generation` (Megas + Champions roster re-admitted, Champions dex patch applied); `isMegaSpecies`, `legalItems`, `megaStones`, `requiredItemFor` |
 | `calc.ts` | `@smogon/calc/adaptable` wrapper: `createPokemon`/`createMove`/`runCalc`/`buildField` |
 | `sets.ts` | opponent common-set inference + usage-stat fallback chain (`getCommonSet`); `suggestedToSet` clamps the item to the format's legal pool |
-| `champions-sets.ts` | Champions-only usage from championsbattledata.com (`/api/index` + `/api/battle/Doubles/:battleName`); Stat Points -> EVs (x8); returns null (falls through) for mons CBD lacks |
-| `formats.ts` | format registry + runtime data-source discovery (`resolveFormat`) |
+| `champions-sets.ts` | Champions-only usage from championsbattledata.com (`/api/index` + `/api/battle/Doubles/:battleName`); Stat Points -> EVs (x8); looks up by the index's `showdownId` (then normalized name); returns null (falls through) for mons CBD lacks |
+| `formats.ts` | format registry + runtime data-source discovery (`resolveFormat`); `liveFormatDef` maps a live Showdown tier to a format (any Champions tier -> `gen9champions`) |
 | `team.ts` | Showdown paste parsing, species/forme helpers |
 | `conditions.ts` | battle-conditions + per-Pokémon modifier model |
 | `battle.ts` | **(extension)** live Showdown board → snapshot (`mapBattle`) |
@@ -77,7 +88,7 @@ live `mon.level`, never the inferred set's level (it's often 50). The bundle is
 npm run dev        # app dev server (localhost:5173)
 npm test           # Vitest suite
 npm run typecheck  # tsc -p tsconfig.json
-npm run gen:legal  # regenerate legal-species.json + legal-items.json
+npm run gen:legal  # regenerate legal-species/legal-items/champions-dex-patch JSON (needs network)
 npm run build:ext  # bundle the extension to extension/dist (gitignored)
 ```
 
