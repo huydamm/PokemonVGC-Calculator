@@ -1,0 +1,170 @@
+{
+ "patch": {
+  "anchorshot": {
+   "basePower": 90
+  },
+  "appleacid": {
+   "basePower": 90
+  },
+  "astralbarrage": {
+   "basePower": 110
+  },
+  "beakblast": {
+   "basePower": 120
+  },
+  "bloodmoon": {
+   "basePower": 130
+  },
+  "boltbeak": {
+   "basePower": 80
+  },
+  "bonerush": {
+   "basePower": 30
+  },
+  "crushclaw": {
+   "flags": {
+    "contact": 1,
+    "protect": 1,
+    "mirror": 1,
+    "metronome": 1,
+    "slicing": 1
+   }
+  },
+  "direclaw": {
+   "flags": {
+    "contact": 1,
+    "protect": 1,
+    "mirror": 1,
+    "metronome": 1,
+    "slicing": 1
+   }
+  },
+  "doubleshock": {
+   "flags": {
+    "contact": 1,
+    "protect": 1,
+    "mirror": 1,
+    "punch": 1
+   }
+  },
+  "dragoncheer": {
+   "flags": {
+    "bypasssub": 1,
+    "allyanim": 1,
+    "metronome": 1,
+    "sound": 1
+   }
+  },
+  "dragonclaw": {
+   "flags": {
+    "contact": 1,
+    "protect": 1,
+    "mirror": 1,
+    "metronome": 1,
+    "slicing": 1
+   }
+  },
+  "dragonhammer": {
+   "basePower": 100
+  },
+  "firelash": {
+   "basePower": 90
+  },
+  "firstimpression": {
+   "basePower": 100
+  },
+  "fishiousrend": {
+   "basePower": 80
+  },
+  "freezedry": {
+   "secondaries": false
+  },
+  "geargrind": {
+   "basePower": 60
+  },
+  "gravapple": {
+   "basePower": 90
+  },
+  "growth": {
+   "type": "Grass"
+  },
+  "howl": {
+   "flags": {
+    "snatch": 1,
+    "sound": 1,
+    "bypasssub": 1,
+    "metronome": 1
+   }
+  },
+  "hyperdrill": {
+   "basePower": 120
+  },
+  "infernalparade": {
+   "basePower": 65
+  },
+  "metalclaw": {
+   "flags": {
+    "contact": 1,
+    "protect": 1,
+    "mirror": 1,
+    "metronome": 1,
+    "slicing": 1
+   }
+  },
+  "meteorassault": {
+   "basePower": 170
+  },
+  "mountaingale": {
+   "basePower": 120
+  },
+  "nightdaze": {
+   "basePower": 90
+  },
+  "psyshieldbash": {
+   "basePower": 90
+  },
+  "revelationdance": {
+   "basePower": 100
+  },
+  "shadowclaw": {
+   "flags": {
+    "contact": 1,
+    "protect": 1,
+    "mirror": 1,
+    "metronome": 1,
+    "slicing": 1
+   }
+  },
+  "slash": {
+   "basePower": 80
+  },
+  "snaptrap": {
+   "type": "Steel"
+  },
+  "snipeshot": {
+   "basePower": 85
+  },
+  "spiritshackle": {
+   "basePower": 90
+  },
+  "tripledive": {
+   "basePower": 35
+  },
+  "tropkick": {
+   "basePower": 85
+  }
+ },
+ "admit": [
+  "burnup",
+  "corrosivegas",
+  "electrify",
+  "kingsshield",
+  "lightofruin",
+  "meteorassault",
+  "octolock",
+  "powershift",
+  "snaptrap",
+  "stormthrow",
+  "trickortreat"
+ ]
+}

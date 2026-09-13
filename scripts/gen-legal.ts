@@ -1,5 +1,5 @@
 /**
- * Precompute per-format legal species + items (and the Champions dex patch) as
+ * Precompute per-format legal species + items and the Champions data patches as
  * static JSON the app ships, so @pkmn/sim stays a dev-only dependency.
  *
  * - gen9ou / gen9doublesou: exact Showdown rules via @pkmn/sim.
@@ -9,7 +9,10 @@
  * - champions-dex-patch.json: abilities/stats/types where Showdown's Champions
  *   species differ from @pkmn/dex, which lags regulations (Reg M-C Z Megas).
  *   Becomes `{}` on its own once @pkmn/dex catches up.
+ * - champions-moves.json: damage-relevant Champions move changes (`patch`) and
+ *   moves Champions re-enables (`admit`), applied by champions-mechanics.ts.
  *
+ * Showdown's TS data is transpiled and evaluated (sd-data.ts), not regex-parsed.
  * Megas are reached via the forme toggle, so the species pool is non-Mega only.
  *
  * Run: npm run gen:legal
@@ -20,6 +23,7 @@ import { dirname, join } from 'node:path';
 import { Dex, TeamValidator } from '@pkmn/sim';
 import { Dex as AppDex } from '@pkmn/dex';
 import { isMegaSpecies } from '../src/services/mega';
+import { loadSdExport, diffChampionsMoves, type DexMoveLike } from './sd-data';
 
 // smogon/pokemon-showdown master, 2026-09-12 (Champions Regulation M-C).
 const SD_SHA = 'aa17ca0fac8bc5605df673bd8774c2d0e91efa43';
@@ -65,21 +69,16 @@ async function sdFile(path: string): Promise<string> {
   return res.text();
 }
 
-// Top-level `id: { ... }` entries of a flat Showdown data table -> id => body.
-// ponytail: regex over TS source, fine for these flat tables; import the TS if SD nests them.
-function sdTable(src: string): Map<string, string> {
-  return new Map([...src.matchAll(/\n\t(\w+): \{([^}]*)\}/g)].map((m) => [m[1], m[2]]));
-}
+type Entry = { isNonstandard?: string | null; tier?: string };
 
 /** Champions-legal species from Showdown's champions formats-data. */
-function championsSpecies(formatsData: string) {
+function championsSpecies(formatsData: Record<string, Entry>) {
   const dex = Dex.forGen(9);
   const ids: string[] = []; // pickable (non-Mega, non-battle-only)
   const all: string[] = []; // every legal species name, Megas included (for the patch)
   const unknown: string[] = [];
-  const table = sdTable(formatsData);
-  for (const [id, body] of table) {
-    if (/isNonstandard: "/.test(body) || /tier: "Illegal"/.test(body)) continue;
+  for (const [id, entry] of Object.entries(formatsData)) {
+    if (entry.isNonstandard || entry.tier === 'Illegal') continue;
     const sp = dex.species.get(id);
     if (!sp.exists) {
       unknown.push(id);
@@ -92,7 +91,7 @@ function championsSpecies(formatsData: string) {
   // (Meowstic-F, Maushold-Four); cosmetic and battle-only formes stay out.
   const legalBases = new Set(ids);
   for (const sp of dex.species.all()) {
-    if (!sp.exists || table.has(sp.id) || sp.battleOnly || isMegaSpecies(sp)) continue;
+    if (!sp.exists || sp.id in formatsData || sp.battleOnly || isMegaSpecies(sp)) continue;
     const base = dex.species.get(sp.baseSpecies);
     if (legalBases.has(base.id) && !(base.cosmeticFormes ?? []).includes(sp.name)) {
       ids.push(sp.id);
@@ -104,38 +103,28 @@ function championsSpecies(formatsData: string) {
 }
 
 /** Champions-legal items: champions items.ts overrides on top of the Gen 9 item pool. */
-function championsItems(itemsSrc: string): string[] {
-  const over = sdTable(itemsSrc);
+function championsItems(items: Record<string, Entry>): string[] {
   const names: string[] = [];
   for (const it of Dex.forGen(9).items.all()) {
-    const body = over.get(it.id);
-    const inherits = body === undefined || !/isNonstandard:/.test(body);
-    const legal = inherits ? it.exists && !it.isNonstandard : /isNonstandard: null/.test(body);
+    const entry = items[it.id];
+    const inherits = !entry || !('isNonstandard' in entry);
+    const legal = inherits ? it.exists && !it.isNonstandard : entry.isNonstandard === null;
     if (legal) names.push(it.name);
   }
   return [...new Set(names)].sort();
 }
 
-type SpeciesPatch = { abilities?: Record<string, string>; baseStats?: Record<string, number>; types?: string[] };
+type SpeciesFields = { abilities?: Record<string, string>; baseStats?: Record<string, number>; types?: string[] };
 
 /** Fields where Showdown's pokedex differs from @pkmn/dex, for the given species. */
-function championsPatch(pokedex: string, names: string[]): Record<string, SpeciesPatch> {
+function championsPatch(pokedex: Record<string, SpeciesFields>, names: string[]): Record<string, SpeciesFields> {
   const dex = AppDex.forGen(9);
-  const patch: Record<string, SpeciesPatch> = {};
-  const pairs = (src: string | undefined, re: RegExp) => [...(src ?? '').matchAll(re)].map((m) => [m[1], m[2]]);
+  const patch: Record<string, SpeciesFields> = {};
   for (const name of names) {
-    const start = pokedex.indexOf(`name: "${name}"`);
     const sp = dex.species.get(name);
-    if (start < 0 || !sp?.exists) continue;
-    const body = pokedex.slice(start, pokedex.indexOf('\n\t},', start));
-    const sd: SpeciesPatch = {
-      abilities: Object.fromEntries(pairs(/abilities: \{([^}]*)\}/.exec(body)?.[1], /(\w+): "([^"]*)"/g)),
-      baseStats: Object.fromEntries(
-        pairs(/baseStats: \{([^}]*)\}/.exec(body)?.[1], /(\w+): (\d+)/g).map(([k, v]) => [k, Number(v)]),
-      ),
-      types: [...(/types: \[([^\]]*)\]/.exec(body)?.[1] ?? '').matchAll(/"([^"]*)"/g)].map((m) => m[1]),
-    };
-    const diff: SpeciesPatch = {};
+    const sd = sp?.exists ? pokedex[sp.id] : undefined;
+    if (!sp || !sd) continue;
+    const diff: SpeciesFields = {};
     for (const key of ['abilities', 'baseStats', 'types'] as const) {
       const v = sd[key];
       if (v && Object.keys(v).length && JSON.stringify(v) !== JSON.stringify(sp[key])) {
@@ -148,20 +137,21 @@ function championsPatch(pokedex: string, names: string[]): Record<string, Specie
 }
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'services');
-const prev = (file: string): Record<string, string[]> =>
+const prev = (file: string): Record<string, unknown> =>
   existsSync(join(dir, file)) ? JSON.parse(readFileSync(join(dir, file), 'utf8')) : {};
 
 // A parse that silently yields far fewer entries means Showdown's layout moved.
-function guard(label: string, next: string[], old: string[] | undefined): void {
-  if (old && next.length < old.length * 0.8) {
+function guard(label: string, next: unknown[], old: unknown): void {
+  if (Array.isArray(old) && next.length < old.length * 0.8) {
     throw new Error(`${label}: ${next.length} entries, previous ${old.length}. Showdown layout changed? Not writing.`);
   }
 }
 
-const [formatsData, itemsSrc, pokedex] = await Promise.all([
+const [formatsSrc, itemsSrc, pokedexSrc, movesSrc] = await Promise.all([
   sdFile('data/mods/champions/formats-data.ts'),
   sdFile('data/mods/champions/items.ts'),
   sdFile('data/pokedex.ts'),
+  sdFile('data/mods/champions/moves.ts'),
 ]);
 
 const species: Record<string, string[]> = {};
@@ -169,17 +159,31 @@ for (const [appId, { id, level }] of Object.entries(SIM_FORMAT)) {
   species[appId] = simLegalIds(id, level);
   console.log(`${appId} (${id}): ${species[appId].length} legal species`);
 }
-const champ = championsSpecies(formatsData);
+const champ = championsSpecies(loadSdExport(formatsSrc, 'FormatsData'));
 species.gen9champions = champ.ids;
-const items: Record<string, string[]> = { gen9champions: championsItems(itemsSrc) };
-const patch = championsPatch(pokedex, champ.all);
+const items: Record<string, string[]> = { gen9champions: championsItems(loadSdExport(itemsSrc, 'Items')) };
+const patch = championsPatch(loadSdExport(pokedexSrc, 'Pokedex'), champ.all);
+const appDex = AppDex.forGen(9);
+const { ignored, ...moves } = diffChampionsMoves(
+  loadSdExport(movesSrc, 'Moves'),
+  (id) => appDex.moves.get(id) as unknown as DexMoveLike,
+);
 
-guard('gen9champions species', species.gen9champions, prev('legal-species.json').gen9champions);
-guard('gen9champions items', items.gen9champions, prev('legal-items.json').gen9champions);
+guard('gen9champions species', species.gen9champions, (prev('legal-species.json') as Record<string, unknown>).gen9champions);
+guard('gen9champions items', items.gen9champions, (prev('legal-items.json') as Record<string, unknown>).gen9champions);
+guard('champions move patch', Object.keys(moves.patch), Object.keys((prev('champions-moves.json').patch as object) ?? {}));
+guard('champions admitted moves', moves.admit, prev('champions-moves.json').admit);
+const ignoredIds = Object.keys(ignored);
+if (ignoredIds.length) {
+  console.warn(`  champions moves: other changed keys, not patched (check for damage effects):`);
+  for (const id of ignoredIds) console.warn(`    ${id}: ${ignored[id].join(', ')}`);
+}
 
 console.log(`gen9champions (Showdown ${SD_SHA.slice(0, 7)}): ${species.gen9champions.length} species, ${items.gen9champions.length} items`);
 console.log(`champions dex patch: ${Object.keys(patch).length} species (${Object.keys(patch).join(', ') || 'none'})`);
+console.log(`champions moves: ${Object.keys(moves.patch).length} patched, ${moves.admit.length} admitted (${moves.admit.join(', ')})`);
 writeFileSync(join(dir, 'legal-species.json'), JSON.stringify(species) + '\n');
 writeFileSync(join(dir, 'legal-items.json'), JSON.stringify(items) + '\n');
 writeFileSync(join(dir, 'champions-dex-patch.json'), JSON.stringify(patch, null, 1) + '\n');
-console.log('wrote legal-species.json, legal-items.json, champions-dex-patch.json');
+writeFileSync(join(dir, 'champions-moves.json'), JSON.stringify(moves, null, 1) + '\n');
+console.log('wrote legal-species.json, legal-items.json, champions-dex-patch.json, champions-moves.json');
