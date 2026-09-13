@@ -210,10 +210,16 @@ drives the real UI in headless Chrome and fails on any console error.
 - **Champions legality follows Showdown** (`data/mods/champions` at a pinned
   commit, currently Reg M-C). Bump `SD_SHA` in `scripts/gen-legal.ts` and run
   `npm run gen:legal` when a new regulation ships.
-- **Champions mechanic changes aren't applied.** Showdown's champions mod
-  retunes about 32 moves (e.g. Psyshield Bash 90 BP) and 13 abilities; calcs
-  still use SV values. Abilities the dex doesn't have yet (Aura Guard, Dragonize)
-  are ignored by the calc, and the UI flags them.
+- **Champions mechanics are partly emulated.** Champions move changes (base
+  power, type, slicing/punch flags, removed secondaries) and the damage-changing
+  Z-A abilities (Fire Mane, Dragonize, Mega Sol, Aura Guard, Eelevate) are
+  applied in Champions calcs. Approximations: Dragonize rounds at the base-power
+  step; Aura Guard against Fire contact moves halves Attack rather than final
+  damage; and when Mega Sol's Sun replaces Sand or Snow, the defender's lost 1.5x
+  defense boost is cancelled at the base-power step. Each is off by about 1 point
+  of base damage, which can reach a few percent on boosted super-effective hits
+  and shift KO chances. Protect interactions (Piercing Drill, Unseen Fist) are not
+  modeled; the UI flags abilities it can't apply.
 - **Champions Stat Points** run on the standard EV-based engine by mapping 1 SP
   to 8 EVs, which is exact at Level 50 (where 8 EVs add 1 stat point). The one
   edge case is a maxed 32-SP stat, which lands 1 point low because the engine

@@ -43,8 +43,17 @@ have no `isMega` flag in the dex, so always detect Megas with `isMegaSpecies`
 its base via `changesFrom` (Floette-Mega comes from Floette-Eternal). Anything
 the dex doesn't know never reaches the calc: `itemForCalc` drops unknown items
 (every stone, Leek) and the UI flags unknown abilities (`isModeledAbility`,
-e.g. Aura Guard). Champions move/ability retunes in Showdown's champions mod are
-not applied; calcs use SV numbers. The stone is display-only: `setToPokemonOptions`
+e.g. Piercing Drill). Champions mechanics are per-format: pass the format id to
+`createMove(name, formatId)` and `runCalc(..., field, formatId)`. In
+`gen9champions`, moves get Showdown's damage-relevant Champions changes
+(`champions-moves.json`: base power, type, flags, removed secondaries; plus
+re-enabled moves like Meteor Assault admitted into `gen`), and
+`champions-mechanics.ts` swaps Z-A abilities for engine stand-ins for one calc
+(Fire Mane -> Flash Fire, Aura Guard -> Fluffy/Heatproof, Eelevate -> Levitate,
+Dragonize -> Dragon type at 1.2x bp via `move.overrides` since `calculate()`
+clones inputs, Mega Sol -> Sun only for moves Sun affects), undone in a `finally`
+and renamed back in `desc`. Not modeled: Protect interactions, secondary
+chances. The stone is display-only: `setToPokemonOptions`
 strips it before the calc, because a held stone crashes the adaptable engine
 (no mega-item data). The opponent editor locks a Mega's item and hides usage %
 on single-option fields.
@@ -55,6 +64,7 @@ on single-option fields.
 | `calc.ts` | `@smogon/calc/adaptable` wrapper: `createPokemon`/`createMove`/`runCalc`/`buildField` |
 | `sets.ts` | opponent common-set inference + usage-stat fallback chain (`getCommonSet`); `suggestedToSet` clamps the item to the format's legal pool |
 | `champions-sets.ts` | Champions-only usage from championsbattledata.com (`/api/index` + `/api/battle/Doubles/:battleName`); Stat Points -> EVs (x8); looks up by the index's `showdownId` (then normalized name); returns null (falls through) for mons CBD lacks |
+| `champions-mechanics.ts` | Champions move overrides + Z-A ability stand-ins, applied by `createMove`/`runCalc` when given `gen9champions` |
 | `formats.ts` | format registry + runtime data-source discovery (`resolveFormat`); `liveFormatDef` maps a live Showdown tier to a format (any Champions tier -> `gen9champions`) |
 | `team.ts` | Showdown paste parsing, species/forme helpers |
 | `conditions.ts` | battle-conditions + per-Pokémon modifier model |
@@ -88,7 +98,7 @@ live `mon.level`, never the inferred set's level (it's often 50). The bundle is
 npm run dev        # app dev server (localhost:5173)
 npm test           # Vitest suite
 npm run typecheck  # tsc -p tsconfig.json
-npm run gen:legal  # regenerate legal-species/legal-items/champions-dex-patch JSON (needs network)
+npm run gen:legal  # regenerate legal-species/legal-items/champions-dex-patch/champions-moves JSON (needs network)
 npm run build:ext  # bundle the extension to extension/dist (gitignored)
 ```
 
