@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createSetService, suggestedToSet, type SuggestedSet } from './sets';
-import { getFormat, type ResolvedFormat } from './formats';
+import { getFormat, type GameType, type ResolvedFormat } from './formats';
 
 describe('suggestedToSet item clamping', () => {
   const base: SuggestedSet = {
@@ -14,6 +14,29 @@ describe('suggestedToSet item clamping', () => {
   });
   it('leaves the item untouched for unrestricted formats', () => {
     expect(suggestedToSet(base, 'gen9ou').item).toBe('Booster Energy');
+  });
+
+  it('replaces an ability the forme cannot have (base-species usage fallback)', () => {
+    const lowKey: SuggestedSet = { ...base, species: 'Toxtricity-Low-Key', ability: 'Plus', item: undefined, items: [] };
+    expect(suggestedToSet(lowKey, 'gen9champions').ability).toBe('Punk Rock');
+    expect(suggestedToSet({ ...lowKey, ability: 'Minus' }, 'gen9champions').ability).toBe('Minus');
+  });
+});
+
+describe('Champions CBD routing', () => {
+  it('asks CBD for the format game type, cached per game type', async () => {
+    const calls: (GameType | undefined)[] = [];
+    const champions = { get: async (_s: string, _l: number, gameType?: GameType) => (calls.push(gameType), null) };
+    const svc = createSetService(jsonFetch({}), champions);
+    const champ = (gameType: GameType): ResolvedFormat => ({
+      def: { ...getFormat('gen9champions'), gameType },
+      stats: { id: null },
+      sets: { id: null },
+    });
+    await svc.getCommonSet('Garchomp', champ('Singles'));
+    await svc.getCommonSet('Garchomp', champ('Doubles'));
+    await svc.getCommonSet('Garchomp', champ('Singles')); // cached
+    expect(calls).toEqual(['Singles', 'Doubles']);
   });
 });
 

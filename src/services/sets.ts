@@ -10,7 +10,7 @@
 import { Smogon } from '@pkmn/smogon';
 import type { StatsTable } from '@pkmn/data';
 import type { PokemonSet } from '@pkmn/sets';
-import { gen, legalItems } from './data';
+import { gen, legalItems, abilitiesFor } from './data';
 import { makeSet } from './team';
 import type { FormatDef, ResolvedFormat } from './formats';
 import { createChampionsSets, type ChampionsSets } from './champions-sets';
@@ -198,7 +198,7 @@ export function createSetService(
   // normal chain (vgc2026 fallback -> base stats).
   async function resolve(speciesName: string, resolved: ResolvedFormat): Promise<SuggestedSet> {
     if (resolved.def.id === 'gen9champions') {
-      const c = await champions.get(speciesName, resolved.def.level);
+      const c = await champions.get(speciesName, resolved.def.level, resolved.def.gameType);
       if (c) return c;
     }
     return build(smogon, speciesName, resolved.def, resolved.stats.id, resolved.stats.note);
@@ -206,7 +206,7 @@ export function createSetService(
 
   return {
     getCommonSet(speciesName, resolved) {
-      const key = `${resolved.def.id}|${resolved.stats.id ?? 'none'}|${speciesName}`;
+      const key = `${resolved.def.id}|${resolved.def.gameType}|${resolved.stats.id ?? 'none'}|${speciesName}`;
       let p = cache.get(key);
       if (!p) {
         p = resolve(speciesName, resolved).catch(() =>
@@ -227,10 +227,14 @@ export function suggestedToSet(s: SuggestedSet, formatId?: string): PokemonSet {
   const legal = legalItems(formatId);
   const item =
     legal && s.item && !legal.includes(s.item) ? s.items.find((o) => legal.includes(o.name))?.name ?? '' : s.item;
+  // Base-species usage (CBD's fallback for a forme) can suggest an ability the
+  // forme lacks (Toxtricity-Low-Key @ Plus); keep it only if the species has it.
+  const abilities = abilitiesFor(s.species);
+  const ability = s.ability && abilities.length && !abilities.includes(s.ability) ? abilities[0] : s.ability;
   return makeSet({
     species: s.species,
     level: s.level,
-    ability: s.ability,
+    ability,
     item,
     nature: s.nature,
     teraType: s.teraType,

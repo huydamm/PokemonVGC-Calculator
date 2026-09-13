@@ -52,6 +52,46 @@ describe('champions-sets (CBD)', () => {
     expect(s!.item).toBe('Life Orb');
   });
 
+  it('resolves CBD-named formes via showdownId (Reg M-C index shape)', async () => {
+    const index = {
+      pokemon: [
+        { name: 'Alolan Ninetales', battleName: 'Alolan Ninetales', showdownId: 'ninetalesalola' },
+        { name: 'Aegislash Shield Forme', battleName: 'Aegislash Shield Forme', showdownId: 'aegislash' },
+        { name: 'Toxtricity', battleName: 'Toxtricity', showdownId: 'toxtricity' },
+        { name: 'Toxtricity Low Key Form', battleName: 'Toxtricity Low Key Form', showdownId: 'toxtricity' },
+        { name: 'Maushold Form 1', battleName: 'Maushold Form 1', showdownId: null },
+      ],
+    };
+    const inner = fakeFetch({ '/api/index': index, '/api/battle/Doubles/': { rows: GARCHOMP_ROWS } });
+    const urls: string[] = [];
+    const svc = createChampionsSets(async (u) => (urls.push(u), inner(u)));
+    expect(await svc.get('Ninetales-Alola', 50)).not.toBeNull();
+    expect(await svc.get('Aegislash', 50)).not.toBeNull();
+    expect(await svc.get('Toxtricity', 50)).not.toBeNull();
+    expect(await svc.get('Maushold', 50)).toBeNull(); // null showdownId row never matches
+    const battle = urls.filter((u) => u.includes('/api/battle/'));
+    expect(battle[0]).toContain('/Doubles/Alolan%20Ninetales?');
+    expect(battle[1]).toContain('/Doubles/Aegislash%20Shield%20Forme?');
+    expect(battle[2]).toContain('/Doubles/Toxtricity?'); // first row wins a shared id
+  });
+
+  it('falls back to the base species row (Floette-Eternal -> "Floette")', async () => {
+    const index = {
+      pokemon: [
+        { name: 'Floette', battleName: 'Floette', showdownId: 'floette' },
+        { name: 'Floette Form 5', battleName: 'Floette Form 5', showdownId: null },
+      ],
+    };
+    const svc = createChampionsSets(fakeFetch({ '/api/index': index, '/api/battle/Doubles/Floette?': { rows: GARCHOMP_ROWS } }));
+    expect(await svc.get('Floette-Eternal', 50)).not.toBeNull();
+  });
+
+  it('fetches Singles usage for a Singles format, cached apart from Doubles', async () => {
+    const svc = createChampionsSets(fakeFetch({ '/api/index': INDEX, '/api/battle/Singles/Garchomp': { rows: GARCHOMP_ROWS } }));
+    expect(await svc.get('Garchomp', 50, 'Singles')).not.toBeNull();
+    expect(await svc.get('Garchomp', 50)).toBeNull(); // no Doubles route in this fixture
+  });
+
   it('returns null when CBD has no entry (falls through to base chain)', async () => {
     const svc = createChampionsSets(fakeFetch({ '/api/index': INDEX }));
     expect(await svc.get('Pikachu', 50)).toBeNull();

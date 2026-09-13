@@ -7,19 +7,19 @@
  * spreads. We hit it only for `gen9champions`; OU/Doubles stay on data.pkmn.cc.
  *
  * Shape: `/api/index` lists every mon with a `battleName` (the id the battle
- * endpoint wants); `/api/battle/Doubles/:battleName?season=Current` returns
+ * endpoint wants); `/api/battle/:gameType/:battleName?season=Current` returns
  * ranked rows tagged by `category` (move | held_item | ability | stat_alignment
  * | stat_points | teammate). Spreads arrive as Stat Points (0-32/stat), which is
  * exactly the app's SP_SYSTEM; the calc engine wants EVs, so multiply by 8.
  *
- * Forme note: the index keys formes by their full battle name (Aegislash ->
- * "Aegislash Shield Forme"). A handful of Champions mons whose default species
- * id doesn't normalize to any battleName (Aegislash, Basculegion, Florges,
- * Furfrou, Vivillon) simply miss here and fall through to the base-stat chain.
+ * Forme note: the index names formes its own way ("Alolan Ninetales",
+ * "Aegislash Shield Forme") but tags most entries with a Showdown `showdownId`,
+ * so we look up by species id first and fall back to the normalized name.
+ * Cosmetic rows ("Maushold Form 1") carry a null showdownId and are skipped.
  */
 import type { StatsTable } from '@pkmn/data';
 import { gen } from './data';
-import { SP_SYSTEM } from './formats';
+import { SP_SYSTEM, type GameType } from './formats';
 import type { SuggestedSet, UsageOption, SpreadOption } from './sets';
 
 const CBD_BASE = 'https://championsbattledata.com';
@@ -113,29 +113,31 @@ function toSuggested(species: string, level: number, rows: CbdRow[]): SuggestedS
 }
 
 export interface ChampionsSets {
-  /** CBD set for a species (Lv 50 Doubles), or null if CBD has no data for it. */
-  get(species: string, level: number): Promise<SuggestedSet | null>;
+  /** CBD set for a species (Doubles by default), or null if CBD has no data for it. */
+  get(species: string, level: number, gameType?: GameType): Promise<SuggestedSet | null>;
 }
 
 /** Build a CBD-backed Champions set service over an injectable fetch. */
 export function createChampionsSets(fetchFn: CbdFetch = (u) => fetch(u)): ChampionsSets {
-  let indexP: Promise<Map<string, string>> | null = null; // norm(name) -> battleName
+  let indexP: Promise<Map<string, string>> | null = null; // showdownId | norm(name) -> battleName
   const cache = new Map<string, Promise<SuggestedSet | null>>();
 
   async function loadIndex(): Promise<Map<string, string>> {
     const res = await fetchFn(`${CBD_BASE}/api/index`);
     if (!res.ok) return new Map();
-    const data = (await res.json()) as { pokemon?: { name: string; battleName?: string }[] };
+    const data = (await res.json()) as { pokemon?: { name: string; battleName?: string; showdownId?: string | null }[] };
     const m = new Map<string, string>();
     for (const p of data.pokemon ?? []) {
       const bn = p.battleName ?? p.name;
+      // First row wins for a shared id (Toxtricity before "Toxtricity Low Key Form").
+      if (p.showdownId && !m.has(p.showdownId)) m.set(p.showdownId, bn);
       m.set(norm(p.name), bn);
       m.set(norm(bn), bn);
     }
     return m;
   }
 
-  async function fetchSet(species: string, level: number): Promise<SuggestedSet | null> {
+  async function fetchSet(species: string, level: number, gameType: GameType): Promise<SuggestedSet | null> {
     let idx: Map<string, string>;
     try {
       indexP ??= loadIndex();
@@ -144,9 +146,12 @@ export function createChampionsSets(fetchFn: CbdFetch = (u) => fetch(u)): Champi
       indexP = null; // let a later pick retry the index
       return null;
     }
-    const battleName = idx.get(norm(species));
+    // Species id, then CBD's own naming, then the base species row
+    // (Floette-Eternal -> "Floette").
+    const sp = gen.species.get(species);
+    const battleName = (sp && idx.get(sp.id)) || idx.get(norm(species)) || (sp && idx.get(norm(sp.baseSpecies)));
     if (!battleName) return null;
-    const url = `${CBD_BASE}/api/battle/Doubles/${encodeURIComponent(battleName)}?season=Current`;
+    const url = `${CBD_BASE}/api/battle/${gameType}/${encodeURIComponent(battleName)}?season=Current`;
     const res = await fetchFn(url);
     if (!res.ok) return null;
     const data = (await res.json()) as { rows?: CbdRow[] };
@@ -155,11 +160,12 @@ export function createChampionsSets(fetchFn: CbdFetch = (u) => fetch(u)): Champi
   }
 
   return {
-    get(species, level) {
-      let p = cache.get(species);
+    get(species, level, gameType = 'Doubles') {
+      const key = `${gameType}|${species}`;
+      let p = cache.get(key);
       if (!p) {
-        p = fetchSet(species, level).catch(() => null);
-        cache.set(species, p);
+        p = fetchSet(species, level, gameType).catch(() => null);
+        cache.set(key, p);
       }
       return p;
     },
