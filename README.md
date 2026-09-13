@@ -48,14 +48,15 @@ crits, Tera and Mega), **plus** the parts Showdown makes you do by hand:
 - **Auto-fills the opponent.** Search any Pokémon and it loads the set people
   actually run (spread, ability, item, Tera, moves) from real usage stats, and
   every choice is still swappable from a dropdown labelled with its usage %.
-- **Paste your team, drag to calc.** Paste a Showdown export once and drag your
-  Pokémon into the attacker/defender slots instead of retyping them.
+- **Paste your team, drag to calc.** Paste a Showdown export once in the Team tab,
+  then drag your Pokémon from the team strip into the attacker/defender slots
+  instead of retyping them.
 - **One-click Tera and Mega.** Terastallize either side with a toggle, or switch
   Mega formes from a dropdown in Champions.
 - **Edit any spread by hand.** Adjust EVs and nature directly for quick what-ifs.
   Champions uses its Stat Point system (0 to 32 per stat, 66 total) instead of EVs.
-- **Bulk heatmap.** For the featured move, a colour-coded grid shows how much HP
-  and defensive investment the defender needs to survive the hit.
+- **Bulk heatmap.** For the featured move, the Heatmap tab shows a colour-banded
+  grid of how much HP and defensive investment the defender needs to survive the hit.
 - **Pick your format.** Gen 9 OU, Pokémon Champions, or VGC 2026. Game type,
   level, and legal Megas adjust automatically.
 
@@ -81,19 +82,22 @@ npm run dev      # start the dev server at http://localhost:5173
 | `npm run preview` | Serve the production build locally. |
 | `npm test` | Run the unit / integration suite (Vitest). |
 | `npm run prove` | Verify the engine wiring against the bundled Showdown engine. |
-| `npm run smoke` | Drive the full UI in headless Chrome and assert zero console errors (dev server must be running). |
+| `npm run smoke` | Drive the full UI through its tabs in headless Chrome and assert results render with zero console errors (dev server must be running). |
 
 ## Usage
 
 1. Pick a **version** in the top-right selector (Gen 9 OU, Pokémon Champions, or
    VGC 2026).
-2. Paste a Showdown team export into the textarea, or click **load sample team**.
-3. Assign the **Attacker** and **Defender**: drag a roster card into a slot (or
-   use the ⚔ / 🛡 buttons), and **search a Pokémon** in the other slot to
-   auto-fill its common competitive set.
-4. Adjust **battle conditions** and per-Pokémon stat stages / status as needed.
+2. In the **Team** tab, paste a Showdown team export.
+3. In the **Calc** tab, fill the **Attacker** and **Defender**: drag a sprite from
+   the team strip into a slot (or use the ⚔ / 🛡 buttons in the Team tab), and
+   **search a Pokémon** in the other slot to auto-fill its common competitive set.
+   Each slot's **Set** and **Spread** tabs hold its editors.
+4. Set weather, terrain, screens, stat stages and status in the **Field** tab.
+   Active effects show as chips on the Calc tab.
 5. Read the **results**: click any move to feature it and see its full damage
-   roll, % of HP, KO chance, and the Showdown description.
+   roll, % of HP, KO chance, and the Showdown description; switch to **Heatmap**
+   for the bulk grid.
 
 ## Tech Stack
 

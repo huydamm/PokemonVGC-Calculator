@@ -71,6 +71,24 @@ on single-option fields.
 | `battle.ts` | **(extension)** live Showdown board → snapshot (`mapBattle`) |
 | `live.ts` | **(extension)** snapshot → both-direction damage (`computeLive`) |
 
+## Frontend
+
+Pixel-art UI, all styles in `src/app.css`. Design rules: flat colours only (no
+gradients), no blue/purple chrome (Pokémon type badge colours are data and stay),
+square 2px ink outlines with bevel + hard shadow, fonts Press Start 2P (display) /
+Pixelify Sans (UI) / VT323 (numbers). Motion is CSS `steps()` keyframes and must
+stay off under `prefers-reduced-motion`.
+
+Layout is tabs through one ARIA component (`components/Tabs.tsx`, keyboard logic in
+`services/tabs.ts`): Calc / Team / Field at the top, Set / Spread per slot, Moves /
+Heatmap in results. The main tabs use `keepMounted` (inactive panels are `hidden`),
+so state inside Calc survives a trip to Field; sub-tabs mount on demand. Skeletons
+(`Skeleton`, `SpriteImg`) are only for real waits: set fetch, format discovery,
+sprite load, and the heatmap's first computation. Team drag uses a `DragOverlay`,
+and touch drags need a press-and-hold so the strip still scrolls. `npm run smoke`
+drives the tabs and fails if results don't render, state resets across tabs,
+arrow-key tab focus breaks, or the page overflows (`WIDTH=400` for phone width).
+
 ## Live-battle Chrome extension (`extension/`)
 
 An MV3 overlay that reads a live `play.pokemonshowdown.com` battle and shows
