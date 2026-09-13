@@ -1,4 +1,5 @@
-import { SUBSTITUTE_SPRITE, typeColor, itemIconStyle } from '../services/sprites';
+import { typeColor, itemIconStyle } from '../services/sprites';
+import { SpriteImg } from './SpriteImg';
 import type { RosterMon } from '../services/team';
 import type { StatsTable } from '@pkmn/data';
 
@@ -37,16 +38,8 @@ export function RosterCard({ mon, compact, onAssign, showTera = true }: RosterCa
   const accent = typeColor(mon.types[0]);
   const evs = evSummary(mon.set.evs);
   return (
-    <div className="card" style={{ borderLeft: `4px solid ${accent}` }}>
-      <img
-        className="card-sprite"
-        src={mon.spriteUrl}
-        alt={mon.speciesName}
-        loading="lazy"
-        onError={(e) => {
-          (e.currentTarget as HTMLImageElement).src = SUBSTITUTE_SPRITE;
-        }}
-      />
+    <div className="card" style={{ borderLeft: `6px solid ${accent}` }}>
+      <SpriteImg className="card-sprite" src={mon.spriteUrl} alt={mon.speciesName} size={96} />
       <div className="card-body">
         <div className="card-title">
           <strong>{mon.displayName}</strong>

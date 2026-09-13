@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { searchSpecies } from '../services/team';
-import { spriteUrl, SUBSTITUTE_SPRITE, typeColor } from '../services/sprites';
+import { spriteUrl, typeColor } from '../services/sprites';
+import { SpriteImg } from './SpriteImg';
 
 export function OpponentPicker({
   onPick,
@@ -40,7 +41,6 @@ export function OpponentPicker({
       <input
         type="text"
         value={query}
-        autoFocus
         placeholder="Search a Pokémon…"
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={onKeyDown}
@@ -54,16 +54,9 @@ export function OpponentPicker({
             className={`picker-row${i === active ? ' active' : ''}`}
             onMouseEnter={() => setActive(i)}
             onClick={() => onPick(e.name)}
-            style={{ borderLeft: `3px solid ${typeColor(e.types[0])}` }}
+            style={{ borderLeft: `4px solid ${typeColor(e.types[0])}` }}
           >
-            <img
-              src={spriteUrl(e.baseSpecies, e.baseSpecies !== e.name ? e.forme : undefined)}
-              alt=""
-              loading="lazy"
-              onError={(ev) => {
-                (ev.currentTarget as HTMLImageElement).src = SUBSTITUTE_SPRITE;
-              }}
-            />
+            <SpriteImg src={spriteUrl(e.baseSpecies, e.baseSpecies !== e.name ? e.forme : undefined)} alt="" size={48} />
             <span>{e.name}</span>
           </button>
         ))}
