@@ -38,13 +38,14 @@ function plainMy(list: unknown[] | undefined): MyPokemon[] {
 // poll ever shows lag.
 function tick(): void {
   try {
-    const battle = (window as unknown as { app?: { curRoom?: { battle?: SdBattle } } }).app?.curRoom
-      ?.battle as (SdBattle & { myPokemon?: unknown[] }) | undefined;
+    const room = (window as unknown as { app?: { curRoom?: { id?: string; battle?: SdBattle } } }).app?.curRoom;
+    const battle = room?.battle as (SdBattle & { myPokemon?: unknown[] }) | undefined;
     if (!battle || battle.gameType == null) return;
     const snapshot: BattleSnapshot = mapBattle(battle);
     const sig = JSON.stringify(snapshot); // board changes drive updates
     if (sig === last) return;
-    window.postMessage({ source: TAG, snapshot, myPokemon: plainMy(battle.myPokemon) }, '*');
+    // roomId tells the panel when it's a different battle (teams and formes change mid-battle).
+    window.postMessage({ source: TAG, roomId: String(room?.id ?? ''), snapshot, myPokemon: plainMy(battle.myPokemon) }, '*');
     last = sig; // only mark sent after a successful post, so failures retry
   } catch {
     /* transient client-state error mid-animation; next tick retries */

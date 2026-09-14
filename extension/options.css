@@ -1,0 +1,88 @@
+/* Options page in the web app's pixel style (tokens from src/tokens.css via theme.ts). */
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.45;
+}
+* {
+  box-sizing: border-box;
+  border-radius: 0;
+}
+.opt {
+  max-width: 520px;
+  margin: 24px;
+  padding: 18px 20px 20px;
+  background: var(--panel);
+  border: var(--px) solid var(--ink);
+  box-shadow: var(--bevel), var(--shadow);
+}
+h1 {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  text-shadow: 2px 2px 0 var(--accent-lo), 3px 3px 0 var(--ink);
+}
+.hint {
+  margin: 0 0 14px;
+  color: var(--muted);
+}
+.field {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-display);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+input {
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: var(--text);
+  background: var(--panel-lo);
+  border: var(--px) solid var(--ink);
+  box-shadow: inset var(--px) var(--px) 0 #000;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+button {
+  padding: 10px 16px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--accent-2);
+  border: var(--px) solid var(--ink);
+  box-shadow: inset var(--px) var(--px) 0 #ffe08a, 2px 2px 0 var(--ink);
+  cursor: pointer;
+  transition: transform var(--t);
+}
+button:active {
+  transform: translate(2px, 2px);
+  box-shadow: inset var(--px) var(--px) 0 var(--panel-lo);
+}
+:focus-visible {
+  outline: var(--px) solid var(--accent-2);
+  outline-offset: 2px;
+}
+#status {
+  color: var(--green);
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

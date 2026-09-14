@@ -5,47 +5,58 @@
  *
  * Calc + network live here (not in MAIN) so fetch to data.pkmn.cc uses the
  * extension's host_permissions and bypasses Showdown's page CSP.
+ *
+ * The panel sits in a shadow root styled with the web app's pixel tokens
+ * (theme.ts + panel.css), so Showdown's CSS can't reach in and ours can't leak
+ * out. Page and LLM strings are rendered as text only (panel.ts).
  */
 import { computeLive, runHypothetical, battleLevel, type MyPokemon, type LiveResult, type HypoRequest } from '../src/services/live';
 import type { BattleSnapshot } from '../src/services/battle';
 import { setService } from '../src/services/sets';
 import { resolveFormat, liveFormatDef, type ResolvedFormat } from '../src/services/formats';
+import { installFonts, themeSheet } from './theme';
+import { el, renderBoard } from './panel';
+import panelCss from './panel.css';
 
 const TAG = 'vgc-calc';
 
 // ---- panel shell -----------------------------------------------------------
-const panel = document.createElement('div');
-panel.id = 'vgc-calc-panel';
-Object.assign(panel.style, {
-  position: 'fixed', top: '8px', right: '8px', zIndex: '99999', width: '560px',
-  maxHeight: '85vh', overflow: 'auto', background: '#1b1d22', color: '#e6e6e6',
-  font: '12px/1.45 ui-monospace, Menlo, Consolas, monospace', border: '1px solid #3a3d44',
-  borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,.4)',
-});
-const header = document.createElement('div');
-Object.assign(header.style, { padding: '8px 12px', cursor: 'pointer', userSelect: 'none', position: 'sticky', top: '0', background: '#1b1d22', borderBottom: '1px solid #2a2d33' });
-header.innerHTML = '<b>VGC Live Calc</b> <span style="opacity:.5;float:right">[hide]</span>';
-const body = document.createElement('div');
-Object.assign(body.style, { padding: '8px 12px' });
+const host = document.createElement('div');
+host.id = 'vgc-calc-root';
+const shadow = host.attachShadow({ mode: 'open' });
+shadow.adoptedStyleSheets = [themeSheet(panelCss)];
+installFonts();
+
+const toggle = el('button', 'vgc-btn vgc-toggle');
+toggle.type = 'button';
+toggle.setAttribute('aria-controls', 'vgc-body');
+const headChips = el('span', 'vgc-head-chips');
 // Board is re-rendered every snapshot; the ask area below it persists.
-const boardDiv = document.createElement('div');
-boardDiv.innerHTML = '<div style="opacity:.6">waiting for a battle…</div>';
-const askDiv = document.createElement('div');
-Object.assign(askDiv.style, { marginTop: '10px', borderTop: '1px solid #2a2d33', paddingTop: '8px' });
-askDiv.innerHTML = `
-  <div style="display:flex;gap:6px">
-    <button id="vgc-mic" title="hold-to-talk (click to start/stop)" style="flex:0 0 auto;padding:6px 8px;background:#12141a;color:#e6e6e6;border:1px solid #3a3d44;border-radius:6px;cursor:pointer;font:inherit">🎤</button>
-    <input id="vgc-q" placeholder="ask… or tap the mic" style="flex:1;min-width:0;box-sizing:border-box;padding:6px;background:#12141a;color:#e6e6e6;border:1px solid #3a3d44;border-radius:6px;font:inherit" />
-  </div>
-  <div id="vgc-a" style="margin-top:6px;color:#cfe;white-space:pre-wrap"></div>`;
-body.append(boardDiv, askDiv);
-panel.append(header, body);
-header.onclick = () => {
-  const hidden = body.style.display === 'none';
-  body.style.display = hidden ? 'block' : 'none';
-  header.querySelector('span')!.textContent = hidden ? '[hide]' : '[show]';
-};
-const mount = () => { if (!document.body.contains(panel)) document.body.appendChild(panel); };
+const board = el('div', 'vgc-board', el('p', 'vgc-muted', 'Waiting for a battle…'));
+const micBtn = el('button', 'vgc-btn vgc-mic', 'Mic');
+micBtn.type = 'button';
+micBtn.title = 'Ask by voice (click to start, click again to stop)';
+micBtn.setAttribute('aria-label', 'Ask by voice');
+micBtn.setAttribute('aria-pressed', 'false');
+const qInput = el('input', 'vgc-input');
+qInput.placeholder = 'Ask… or tap Mic';
+qInput.setAttribute('aria-label', 'Ask the battle assistant');
+const aDiv = el('div', 'vgc-answer');
+aDiv.setAttribute('aria-live', 'polite');
+const body = el('div', 'vgc-body', board, el('div', 'vgc-ask', el('div', 'vgc-ask-row', micBtn, qInput), aDiv));
+body.id = 'vgc-body';
+shadow.append(el('div', 'vgc-panel', el('header', 'vgc-head', el('span', 'vgc-title', 'VGC Live Calc'), headChips, toggle), body));
+
+function setOpen(open: boolean): void {
+  body.hidden = !open;
+  toggle.textContent = open ? '−' : '+';
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.setAttribute('aria-label', open ? 'Hide calc panel' : 'Show calc panel');
+}
+setOpen(true);
+toggle.addEventListener('click', () => setOpen(body.hidden));
+
+const mount = () => { if (!document.body.contains(host)) document.body.appendChild(host); };
 if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
 
 // ---- format resolution (cached by tier) ------------------------------------
@@ -60,86 +71,69 @@ function resolveLiveFormat(snapshot: BattleSnapshot): Promise<ResolvedFormat> {
   return p;
 }
 
-// ---- rendering -------------------------------------------------------------
-const pctRange = (r: [number, number]) => `${r[0]}-${r[1]}%`;
-const boosts = (b: Record<string, number>) =>
-  Object.entries(b).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`).join(' ');
-
-function monLine(m: BattleSnapshot['mine'][number]): string {
-  if (!m) return '<div style="opacity:.4">— empty —</div>';
-  const hp = m.known && m.hp != null ? `${m.hp}/${m.maxHP} (${m.hpPercent}%)` : `${m.hpPercent}%`;
-  const tags = [
-    m.status && m.status.toUpperCase(),
-    Object.keys(m.boosts).length && boosts(m.boosts as Record<string, number>),
-    m.terastallized && `Tera ${m.teraType}`, m.item, m.ability,
-  ].filter(Boolean);
-  return `<div style="margin:3px 0"><b>${m.species}</b> <span style="opacity:.7">${hp}</span>${
-    tags.length ? `<div style="opacity:.75">${tags.join(' · ')}</div>` : ''
-  }</div>`;
+/** Short format name for the header chip ("Pokémon Champions", "Doubles OU"). */
+function formatLabel(s: BattleSnapshot): string {
+  try {
+    return liveFormatDef(s.tier || 'gen9', s.field.gameType, battleLevel(s)).label.replace(/^\[Gen \d+\]\s*/, '');
+  } catch {
+    return s.tier;
+  }
 }
 
-const calcLine = (l: LiveResult['incoming'][number]) =>
-  `<div style="margin:2px 0">${l.estimated ? '<span style="opacity:.5">~</span>' : ''}<b>${l.attacker}</b> ${l.move} → ${l.defender}: <span style="color:#ffd479">${pctRange(l.percent)}</span> <span style="opacity:.7">(${l.ko})</span></div>`;
-
-function render(snapshot: BattleSnapshot, result?: LiveResult): void {
-  mount();
-  const f = snapshot.field;
-  const field = [
-    f.weather, f.terrain && `${f.terrain} Terrain`, f.trickRoom && 'Trick Room', f.gravity && 'Gravity',
-    f.mySide.tailwind && 'your TW', f.theirSide.tailwind && 'their TW',
-  ].filter(Boolean).join(' · ') || 'no field effects';
-
-  const lines = (rows: LiveResult['incoming']) =>
-    rows.length ? rows.map(calcLine).join('') : '<div style="opacity:.5">—</div>';
-
-  // Two columns: your stuff on the left, the opponent on the right.
-  const mine = `
-    <div style="color:#7fd1ff">YOUR SIDE</div>${snapshot.mine.map(monLine).join('')}
-    ${result ? `<div style="color:#7fd1ff;margin-top:8px">YOUR DAMAGE</div>${lines(result.outgoing)}` : ''}`;
-  const theirs = `
-    <div style="color:#ff9d7f">OPPONENT</div>${snapshot.theirs.map(monLine).join('')}
-    ${result ? `<div style="color:#ff9d7f;margin-top:8px">THREATS TO YOU</div>${lines(result.incoming)}` : ''}`;
-
-  boardDiv.innerHTML = `
-    <div style="opacity:.5">turn ${snapshot.turn} · ${field}</div>
-    <div style="display:flex;gap:14px;margin-top:8px">
-      <div style="flex:1;min-width:0">${mine}</div>
-      <div style="flex:1;min-width:0;border-left:1px solid #2a2d33;padding-left:14px">${theirs}</div>
-    </div>
-    ${result ? '' : '<div style="opacity:.5;margin-top:10px">calculating…</div>'}`;
-}
-
-// ---- snapshot handling -----------------------------------------------------
+// ---- rendering + snapshot handling -----------------------------------------
 let seq = 0;
 let latestSnapshot: BattleSnapshot | null = null;
 let latestResult: LiveResult | null = null;
 let latestMyPokemon: MyPokemon[] = [];
+let battleRoom = '';
+let shownResult = '';
+let wasBusy = false;
 
-async function onSnapshot(snapshot: BattleSnapshot, myPokemon: MyPokemon[]): Promise<void> {
+function render(snapshot: BattleSnapshot, result: LiveResult | null, busy: boolean): void {
+  mount();
+  // Rows animate in only when the numbers changed, not on every HP/boost tick.
+  const key = result ? JSON.stringify(result) : '';
+  const animate = !busy && key !== shownResult;
+  if (!busy) shownResult = key;
+  // A calc spanning several snapshots stays dimmed instead of restarting the delayed dim each time.
+  const dim = busy && wasBusy;
+  wasBusy = busy;
+  renderBoard(board, headChips, snapshot, result, formatLabel(snapshot), { busy, animate, dim });
+}
+
+async function onSnapshot(snapshot: BattleSnapshot, myPokemon: MyPokemon[], roomId: string): Promise<void> {
+  const room = roomId || snapshot.tier;
+  if (room !== battleRoom) {
+    battleRoom = room;
+    latestResult = null; // a new battle shows a skeleton, never the last battle's numbers
+  }
   latestSnapshot = snapshot;
   latestMyPokemon = myPokemon;
-  render(snapshot); // board first, instantly
+  render(snapshot, latestResult, true); // board first, instantly; last numbers stay dimmed until the new ones land
   const mySeq = ++seq;
   try {
     const resolved = await resolveLiveFormat(snapshot);
     const result = await computeLive(snapshot, myPokemon, setService, resolved);
     if (mySeq === seq) {
       latestResult = result;
-      render(snapshot, result); // ignore if a newer snapshot arrived
+      render(snapshot, result, false); // ignore if a newer snapshot arrived
     }
   } catch (e) {
     console.error('[vgc-calc] calc failed', e);
+    latestResult = null;
+    if (mySeq === seq) render(snapshot, null, false);
   }
 }
 
 window.addEventListener('message', (ev) => {
+  if (ev.source !== window) return; // only inject.ts in this frame, never Showdown's ad iframes
   const d = ev.data;
   if (!d || d.source !== TAG || !d.snapshot) return;
-  void onSnapshot(d.snapshot as BattleSnapshot, (d.myPokemon ?? []) as MyPokemon[]);
+  void onSnapshot(d.snapshot as BattleSnapshot, (d.myPokemon ?? []) as MyPokemon[], String(d.roomId ?? ''));
 });
 
 // ---- ask the agent ---------------------------------------------------------
-/** Your full team (all 6, exact) from the |request| data — known even on the bench. */
+/** Your full team (all 6, exact) from the |request| data, known even on the bench. */
 function formatMyTeam(team: MyPokemon[]): string[] {
   return team.map((p) => {
     const species = p.details.split(',')[0].trim();
@@ -181,7 +175,7 @@ function formatContext(s: BattleSnapshot, r: LiveResult | null, myTeam: MyPokemo
 const MODEL = 'claude-haiku-4-5';
 const SYSTEM = `You are a Pokemon VGC/Showdown live-battle assistant, speaking to the player mid-game.
 You are given the current battle state and a PRECOMPUTED damage table from the real Showdown engine
-for the ACTIVE matchup — read those numbers, never invent them. For any OTHER matchup (a bench mon, a
+for the ACTIVE matchup: read those numbers, never invent them. For any OTHER matchup (a bench mon, a
 Tera, a stat boost, a hypothetical switch-in), call the run_calc tool to get an exact number; do not
 estimate it yourself. Numbers marked [est] use an inferred opponent set (item/ability not yet revealed).
 Answer in 1-2 short spoken sentences like a teammate calling a play: name the move, the roll, the KO.`;
@@ -196,7 +190,7 @@ const RUN_CALC_TOOL = {
       attacker: { type: 'string', description: 'attacking Pokemon species, e.g. "Garchomp"' },
       defender: { type: 'string', description: 'defending Pokemon species' },
       move: { type: 'string', description: 'move name, e.g. "Earth Power"' },
-      attacker_side: { type: 'string', enum: ['mine', 'theirs'], description: 'whose Pokemon is the attacker — "mine" uses your exact set, "theirs" the inferred opponent set' },
+      attacker_side: { type: 'string', enum: ['mine', 'theirs'], description: 'whose Pokemon is the attacker: "mine" uses your exact set, "theirs" the inferred opponent set' },
       tera_attacker: { type: 'string', description: 'optional Tera type to terastallize the attacker' },
       attacker_boosts: { type: 'object', description: 'optional stat stages on the attacker, e.g. {"atk":2}' },
       defender_boosts: { type: 'object', description: 'optional stat stages on the defender, e.g. {"def":1}' },
@@ -245,20 +239,18 @@ async function askAgent(question: string): Promise<string> {
     }
     return msg.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join(' ').trim() || '(no answer)';
   }
-  return 'Stopped after several tool calls — try a more specific question.';
+  return 'Stopped after several tool calls. Try a more specific question.';
 }
-
-const qInput = askDiv.querySelector('#vgc-q') as HTMLInputElement;
-const aDiv = askDiv.querySelector('#vgc-a') as HTMLDivElement;
-const micBtn = askDiv.querySelector('#vgc-mic') as HTMLButtonElement;
 
 /** Run a question and (for voice) speak the answer back. */
 function submit(question: string, speak: boolean): void {
   question = question.trim();
   if (!question) return;
-  aDiv.textContent = 'thinking…';
+  aDiv.textContent = 'Thinking…';
+  aDiv.classList.add('busy');
   askAgent(question).then((answer) => {
     aDiv.textContent = answer;
+    aDiv.classList.remove('busy');
     if (speak) speakOut(answer);
   });
 }
@@ -282,6 +274,12 @@ const SR = (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognit
 let recog: any = null;
 let listening = false;
 
+function setListening(on: boolean): void {
+  listening = on;
+  micBtn.setAttribute('aria-pressed', String(on));
+  micBtn.textContent = on ? 'Stop' : 'Mic';
+}
+
 micBtn.addEventListener('click', () => {
   if (!SR) { aDiv.textContent = 'Voice input is not supported in this browser.'; return; }
   if (listening) { recog?.stop(); return; }
@@ -289,8 +287,7 @@ micBtn.addEventListener('click', () => {
   recog.lang = 'en-US';
   recog.interimResults = true;
   recog.continuous = false;
-  listening = true;
-  micBtn.textContent = '🔴';
+  setListening(true);
   speechSynthesis.cancel(); // don't transcribe our own TTS
   recog.onresult = (e: any) => {
     const transcript = Array.from(e.results).map((r: any) => r[0].transcript).join('');
@@ -298,6 +295,6 @@ micBtn.addEventListener('click', () => {
     if (e.results[e.results.length - 1].isFinal) submit(transcript, true); // voice: speak the answer
   };
   recog.onerror = (e: any) => { aDiv.textContent = `Voice error: ${e.error}`; };
-  recog.onend = () => { listening = false; micBtn.textContent = '🎤'; };
+  recog.onend = () => setListening(false);
   recog.start();
 });

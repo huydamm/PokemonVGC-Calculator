@@ -13,7 +13,8 @@
     "smoke": "node scripts/smoke.mjs",
     "gen:legal": "tsx scripts/gen-legal.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "build:ext": "esbuild extension/inject.ts extension/content.ts extension/background.ts extension/options.ts --bundle --minify --format=iife --target=chrome111 --external:node:* --outdir=extension/dist"
+    "build:ext": "esbuild extension/inject.ts extension/content.ts extension/background.ts extension/options.ts --bundle --minify --loader:.css=text --format=iife --target=chrome111 --external:node:* --outdir=extension/dist",
+    "smoke:ext": "node scripts/ext-smoke.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.107.0",

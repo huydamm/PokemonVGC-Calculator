@@ -1,25 +1,22 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>VGC Live Calc — options</title>
-    <style>
-      body { font: 14px/1.5 system-ui, sans-serif; background: #1b1d22; color: #e6e6e6; padding: 24px; max-width: 520px; }
-      h1 { font-size: 16px; }
-      input { width: 100%; padding: 8px; margin: 8px 0; background: #12141a; color: #e6e6e6; border: 1px solid #3a3d44; border-radius: 6px; box-sizing: border-box; }
-      button { padding: 8px 16px; background: #2f6fed; color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
-      .hint { opacity: .6; font-size: 12px; }
-      #status { margin-left: 10px; color: #7fd1ff; }
-    </style>
+    <title>VGC Live Calc options</title>
+    <!-- Dark first paint; the full theme is adopted by dist/options.js. -->
+    <style>html { background: #16130f; color: #f3ead7; }</style>
   </head>
   <body>
-    <h1>VGC Live Calc</h1>
-    <p class="hint">Your Anthropic API key is stored locally in this browser and only sent to api.anthropic.com.</p>
-    <input id="key" type="password" placeholder="sk-ant-..." autocomplete="off" />
-    <div>
-      <button id="save">Save</button>
-      <span id="status"></span>
-    </div>
+    <main class="opt">
+      <h1>VGC Live Calc</h1>
+      <p class="hint">Your Anthropic API key is stored locally in this browser and only sent to api.anthropic.com.</p>
+      <label class="field" for="key">API key</label>
+      <input id="key" type="password" placeholder="sk-ant-..." autocomplete="off" />
+      <div class="row">
+        <button id="save" type="button">Save</button>
+        <span id="status" role="status"></span>
+      </div>
+    </main>
     <script src="dist/options.js"></script>
   </body>
 </html>

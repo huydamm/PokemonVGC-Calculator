@@ -1,0 +1,417 @@
+/* Overlay panel in the web app's pixel style (tokens from src/tokens.css via theme.ts).
+   Lives in a shadow root: `all: initial` stops Showdown's inherited text styles at the host. */
+:host {
+  all: initial;
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 99999;
+  display: block;
+  width: 560px;
+  max-width: calc(100vw - 16px);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--text);
+}
+* {
+  box-sizing: border-box;
+  border-radius: 0;
+}
+[hidden] {
+  display: none !important;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.vgc-panel {
+  max-height: 85vh;
+  overflow: auto;
+  background: var(--panel);
+  border: var(--px) solid var(--ink);
+  box-shadow: var(--bevel), var(--shadow);
+}
+.vgc-panel::-webkit-scrollbar {
+  width: 10px;
+}
+.vgc-panel::-webkit-scrollbar-thumb {
+  background: var(--panel-hi);
+  border: var(--px) solid var(--ink);
+}
+
+/* ---- Header ---- */
+.vgc-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 12px;
+  background: var(--panel-2);
+  border-bottom: var(--px) solid var(--ink);
+}
+.vgc-title {
+  flex: none;
+  font-family: var(--font-display);
+  font-size: 10px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--accent-2);
+  text-shadow: 2px 2px 0 var(--accent-lo);
+}
+.vgc-head-chips {
+  display: flex;
+  flex: 1;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+.vgc-head .vgc-chip {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 400;
+  background: var(--ink);
+  color: var(--accent-2);
+}
+
+/* ---- Buttons, chips, inputs ---- */
+.vgc-btn {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: var(--px) solid var(--ink);
+  box-shadow: inset var(--px) var(--px) 0 var(--panel-hi), 2px 2px 0 var(--ink);
+  cursor: pointer;
+  transition: transform var(--t), background var(--t), color var(--t);
+}
+@media (hover: hover) {
+  .vgc-btn:hover {
+    background: var(--panel-hi);
+  }
+}
+.vgc-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: inset var(--px) var(--px) 0 var(--panel-lo);
+}
+.vgc-btn:focus-visible,
+.vgc-input:focus-visible {
+  outline: var(--px) solid var(--accent-2);
+  outline-offset: 2px;
+}
+.vgc-toggle {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  line-height: 1;
+}
+.vgc-chip {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 6px;
+  border: var(--px) solid var(--ink);
+  background: var(--panel-2);
+  color: var(--muted);
+  text-shadow: 1px 1px 0 var(--ink);
+}
+.vgc-chip.on {
+  background: var(--accent-2);
+  color: var(--ink);
+  text-shadow: none;
+}
+.vgc-chip.bad {
+  background: #3a1612;
+  color: #ffb4ad;
+}
+.vgc-chip.good {
+  color: var(--green);
+}
+.vgc-chip.neg {
+  color: var(--red);
+}
+.vgc-chip.tera {
+  color: var(--accent-2);
+}
+.vgc-chip.est {
+  flex: none;
+  background: #3a2a10;
+  color: #f8d27a;
+  cursor: help;
+}
+.vgc-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: var(--text);
+  padding: 7px 8px;
+  background: var(--panel-lo);
+  border: var(--px) solid var(--ink);
+  box-shadow: inset var(--px) var(--px) 0 #000;
+}
+.vgc-input::placeholder {
+  color: var(--muted);
+}
+
+/* ---- Board ---- */
+.vgc-body {
+  padding: 10px 12px 12px;
+}
+.vgc-muted,
+.vgc-none {
+  margin: 0;
+  color: var(--muted);
+}
+.vgc-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.vgc-label {
+  margin-right: 2px;
+  font-family: var(--font-display);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.vgc-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.vgc-h {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.6;
+  text-transform: uppercase;
+}
+.vgc-h.gap {
+  margin-top: 12px;
+}
+.mine .vgc-h {
+  color: var(--accent-2);
+}
+.theirs .vgc-h {
+  color: var(--accent-hi);
+}
+
+.vgc-mon {
+  margin-bottom: 6px;
+  padding: 5px 7px;
+  background: var(--panel-2);
+  border: var(--px) solid var(--ink);
+  box-shadow: inset var(--px) var(--px) 0 var(--panel-hi), 2px 2px 0 var(--ink);
+}
+.mine .vgc-mon {
+  border-left: 5px solid var(--accent-2);
+}
+.theirs .vgc-mon {
+  border-left: 5px solid var(--accent);
+}
+.vgc-col .vgc-mon.empty {
+  color: var(--muted);
+  background: none;
+  border: var(--px) dashed var(--panel-hi);
+  box-shadow: none;
+}
+.vgc-mon.fainted {
+  opacity: 0.5;
+}
+.vgc-mon-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+.vgc-species {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 700;
+}
+.vgc-hp {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  line-height: 1;
+}
+.vgc-hp-abs {
+  font-size: 16px;
+  color: var(--muted);
+}
+.vgc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* ---- Damage ---- */
+.vgc-dmgs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Dim the old numbers only if the new calc takes a moment, so quick HP ticks don't flicker. */
+.vgc-dmgs[aria-busy='true'] {
+  animation: vgc-dim 1ms steps(1, end) 300ms forwards;
+}
+.vgc-dmgs.dim {
+  opacity: 0.55;
+}
+@keyframes vgc-dim {
+  to {
+    opacity: 0.55;
+  }
+}
+.vgc-dmg {
+  padding: 5px 7px;
+  background: var(--panel-lo);
+  border: var(--px) solid var(--ink);
+}
+/* Rows animate in once per calc result, not on every board refresh. */
+.vgc-dmgs.fresh .vgc-dmg {
+  animation: px-in 160ms steps(4, end) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+.vgc-dmg-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.vgc-move {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.vgc-who {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+.vgc-dmg-num {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin-top: 2px;
+}
+.vgc-pct {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--accent-2);
+}
+.vgc-ko {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--amber);
+}
+.vgc-ko.good {
+  color: var(--green);
+}
+.vgc-skel-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0;
+}
+.skel {
+  display: block;
+  height: 12px;
+  background: var(--panel-2);
+  border: var(--px) solid var(--ink);
+  animation: px-blink 900ms steps(2, end) infinite;
+}
+.w-70 {
+  width: 70%;
+}
+.w-40 {
+  width: 40%;
+}
+
+/* ---- Ask the assistant ---- */
+.vgc-ask {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: var(--px) solid var(--panel-hi);
+}
+.vgc-ask-row {
+  display: flex;
+  gap: 8px;
+}
+.vgc-mic {
+  flex: none;
+  padding: 0 10px;
+  font-family: var(--font-display);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.vgc-mic[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--ink);
+  box-shadow: inset var(--px) var(--px) 0 var(--accent-hi), 2px 2px 0 var(--ink);
+}
+.vgc-answer {
+  margin-top: 8px;
+  white-space: pre-wrap;
+}
+.vgc-answer:empty {
+  display: none;
+}
+.vgc-answer.busy {
+  color: var(--muted);
+}
+
+@keyframes px-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes px-blink {
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+  /* No delayed dim without motion: old numbers dim straight away. */
+  .vgc-dmgs[aria-busy='true'] {
+    opacity: 0.55;
+  }
+}
