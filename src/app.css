@@ -32,6 +32,11 @@
   box-sizing: border-box;
   border-radius: 0;
 }
+html {
+  /* iOS landscape and Android font boosting would inflate text unevenly. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 body {
   margin: 0;
   color: var(--text);
@@ -45,6 +50,29 @@ button {
   font-family: inherit;
   font-size: inherit;
   color: var(--text);
+}
+
+/* Touch: no double-tap zoom delay on controls, and the pixel pressed state is the
+   tap feedback, so drop the platform highlight. Pinch zoom stays allowed. */
+button,
+select,
+input,
+textarea,
+label,
+[role='tab'],
+.moves tbody tr {
+  touch-action: manipulation;
+}
+button,
+select,
+input,
+textarea,
+label,
+[role='tab'],
+.picker-row,
+.moves tbody tr,
+.strip-chip {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .sr-only {
@@ -86,16 +114,35 @@ button {
   cursor: pointer;
   transition: transform var(--t), background var(--t), color var(--t), box-shadow var(--t);
 }
-.tab:hover,
-.seg-btns button:hover,
-.stage button:hover,
-.card-assign button:hover,
-.swap:hover:not(:disabled),
-.strip-empty:hover,
-.summary-chip:hover,
-.strip-chip:hover,
-.move-btn:hover {
-  background: var(--panel-hi);
+/* Hover only where a pointer can hover; on touch it would stick after a tap. */
+@media (hover: hover) {
+  .tab:hover,
+  .seg-btns button:hover,
+  .stage button:hover,
+  .card-assign button:hover,
+  .swap:hover:not(:disabled),
+  .strip-empty:hover,
+  .summary-chip.idle:hover,
+  .strip-chip:hover,
+  .move-btn:hover {
+    background: var(--panel-hi);
+  }
+  .summary-chip:hover {
+    background: #ffd25c;
+  }
+  .link:hover {
+    color: var(--text);
+  }
+  .moves tbody tr:hover {
+    background: var(--panel-2);
+  }
+  .picker-row:hover {
+    background: var(--panel-hi);
+    color: var(--accent-2);
+  }
+  .check:hover {
+    color: var(--accent-2);
+  }
 }
 .tab:active,
 .seg-btns button:active,
@@ -157,7 +204,9 @@ select:focus {
 .app {
   max-width: 1240px;
   margin: 0 auto;
-  padding: 1.25rem 1.25rem 4rem;
+  /* Side and bottom padding respect notches and the home indicator (viewport-fit=cover). */
+  padding: 1.25rem max(1.25rem, env(safe-area-inset-right)) calc(4rem + env(safe-area-inset-bottom, 0px))
+    max(1.25rem, env(safe-area-inset-left));
 }
 
 .app-head {
@@ -305,9 +354,6 @@ select:focus {
   color: var(--ink);
   box-shadow: inset var(--px) var(--px) 0 #ffe08a, 2px 2px 0 var(--ink);
 }
-.summary-chip:hover {
-  background: #ffd25c;
-}
 .summary-chip.idle {
   background: var(--panel-2);
   color: var(--muted);
@@ -359,9 +405,6 @@ textarea {
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
-}
-.link:hover {
-  color: var(--text);
 }
 .muted {
   color: var(--muted);
@@ -518,7 +561,7 @@ textarea {
   }
   .swap {
     justify-self: center;
-    margin-top: 0 !important;
+    margin-top: 0;
   }
   .swap-icon {
     transform: rotate(90deg);
@@ -529,7 +572,10 @@ textarea {
   padding: 0.7rem;
   min-height: 110px;
   transition: border-color var(--t), background var(--t);
+  /* Editors adapt to the slot's own width (phones, and tablet two-column). */
+  container-type: inline-size;
 }
+
 .slot.over {
   border: var(--px) solid var(--accent-2);
   background: #2c2410;
@@ -736,8 +782,42 @@ textarea {
   }
   /* Tighter vertical rhythm so the HP bar and move menu fit a 360x640 screen. */
   .app-head {
+    display: grid;
+    /* minmax(0, ...) so the format select's longest option can't widen the page. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.4rem;
     padding-bottom: 0.6rem;
     margin-bottom: 0.6rem;
+  }
+  .app-head h1 {
+    font-size: 0.9rem;
+    margin: 0;
+    text-shadow: 2px 2px 0 var(--accent-lo), 3px 3px 0 var(--ink);
+  }
+  .format-pick {
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+  .format-pick select {
+    flex: 1;
+    min-width: 0;
+  }
+  .format-meta {
+    display: block;
+    flex: none;
+    max-width: 45%;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tabs-lg > .tablist {
+    padding-right: 0;
+  }
+  .tabs-lg > .tablist .tab {
+    flex: 1;
+    justify-content: center;
+    padding-inline: 0.5rem;
   }
   .tabs-lg > .tabpanel {
     margin-top: 0.6rem;
@@ -746,6 +826,7 @@ textarea {
     gap: 0.6rem;
   }
 }
+
 .band-green {
   --hp-color: #5cbf4a;
   --hp-soft: #2f5a28;
@@ -836,9 +917,6 @@ textarea {
   animation: px-in 160ms steps(4, end) both;
   animation-delay: calc(var(--i, 0) * 40ms);
   transition: background var(--t);
-}
-.moves tbody tr:hover {
-  background: var(--panel-2);
 }
 .moves tr:last-child td {
   border-bottom: none;
@@ -955,8 +1033,7 @@ textarea {
   font-size: 1rem;
   transition: background var(--t);
 }
-.picker-row.active,
-.picker-row:hover {
+.picker-row.active {
   background: var(--panel-hi);
   color: var(--accent-2);
 }
@@ -1109,9 +1186,6 @@ textarea {
   font-size: 0.95rem;
   cursor: pointer;
 }
-.check:hover {
-  color: var(--accent-2);
-}
 .cond-sides {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1240,6 +1314,193 @@ textarea::-webkit-scrollbar-thumb,
 @keyframes px-flash-b {
   50% {
     opacity: 0.3;
+  }
+}
+
+/* Overrides for phones and touch screens live at the end of the file: they share
+   specificity with the base rules above, so source order decides. */
+@media (max-width: 400px) {
+  .heat {
+    width: 3rem;
+  }
+  .heatmap-skel {
+    grid-template-columns: repeat(6, 3rem);
+  }
+}
+
+/* Phones on their side: two slots side by side (even under 760px wide, so this
+   undoes the stacked-phone rules), and everything above them compacted so the
+   move menu and HP bar fit without scrolling. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 1024px) {
+  .app {
+    padding-top: 0.5rem;
+  }
+  .app-head {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.6rem;
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.4rem;
+  }
+  .slots {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  .swap {
+    justify-self: auto;
+    margin-top: 2.4rem;
+  }
+  .swap-icon {
+    transform: none;
+  }
+  .hp-mobile {
+    display: none;
+  }
+  .slot .hp-panel {
+    display: block;
+  }
+  .app-head h1 {
+    font-size: 0.8rem;
+    margin: 0;
+    text-shadow: 2px 2px 0 var(--accent-lo);
+  }
+  .format-meta {
+    display: none;
+  }
+  .tabs-lg > .tabpanel {
+    margin-top: 0.5rem;
+  }
+  .calc-view {
+    gap: 0.5rem;
+  }
+  .strip-chip {
+    padding: 0.1rem 0.35rem;
+  }
+  .strip-chip .sprite {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  /* Sprite-only chips; the name stays for screen readers. */
+  .strip-chip > span:not(.sprite) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .slot {
+    padding: 0.5rem;
+  }
+  .slot-head {
+    margin-bottom: 0.3rem;
+  }
+  .move-menu {
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+  }
+  .move-btn {
+    padding: 0.25rem 0.5rem 0.25rem 0.6rem;
+  }
+  .hp-panel {
+    padding: 0.45rem 0.6rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Touch screens (phones and touch tablets, any width): 44px targets per Apple HIG,
+   16px form controls so iOS Safari doesn't zoom on focus. Desktop density is untouched. */
+@media (pointer: coarse) {
+  .tab,
+  .seg-btns button,
+  .summary-chip,
+  .strip-empty,
+  .swap,
+  .link,
+  .picker-row {
+    min-height: 44px;
+  }
+  .link {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.5rem;
+  }
+  .editor-field select,
+  .cond-card select,
+  .format-pick select,
+  .picker input,
+  .spread-stat input,
+  .strip-chip {
+    min-height: 44px;
+  }
+  .editor-field select,
+  .cond-card select,
+  .format-pick select,
+  .check input,
+  .tera-toggle input {
+    font-size: 16px;
+  }
+  .seg-btns button {
+    padding: 0.5rem 0.8rem;
+  }
+  .stage {
+    grid-template-columns: 2.6rem 44px 2.4rem 44px;
+  }
+  .stage button {
+    height: 44px;
+  }
+  .check input,
+  .tera-toggle input {
+    width: 24px;
+    height: 24px;
+  }
+  .check input:checked,
+  .tera-toggle input:checked {
+    box-shadow: inset 0 0 0 5px var(--panel-lo);
+  }
+  .check,
+  .tera-toggle {
+    min-height: 44px;
+  }
+  .cond-flags {
+    gap: 0 0.9rem;
+  }
+  .card-assign button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .moves td {
+    padding-block: 0.75rem;
+  }
+}
+
+/* Pixel labels never below 10px on a phone or a touch screen. */
+@media (max-width: 760px), (pointer: coarse) {
+  .slot-head,
+  .section-title,
+  .field-summary-label,
+  .hp-label,
+  .moves th,
+  .editor-field,
+  .spread-stat,
+  .conditions h4,
+  .seg-label {
+    font-size: 0.625rem;
+  }
+  .tabs-sm > .tablist .tab {
+    font-size: 0.65rem;
+  }
+}
+
+/* Slot-width editors (phones, and tablet two-column). Same source-order rule as above. */
+@container (max-width: 380px) {
+  .editor-moves {
+    grid-template-columns: 1fr;
+  }
+  .spread-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .move-btn-name {
+    font-size: 0.9rem;
   }
 }
 

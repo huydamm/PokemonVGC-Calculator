@@ -62,6 +62,7 @@ export function SpreadEditor({
             <span>{label}</span>
             <input
               type="number"
+              inputMode="numeric"
               min={0}
               max={sys.perStatMax}
               step={1}
