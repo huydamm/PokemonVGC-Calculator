@@ -157,11 +157,12 @@ damage both ways in an overlay, and adds an assistant you can ask questions.
 - **Reads the live board.** Both active Pokémon, HP, boosts, weather, terrain,
   side conditions, plus your full team's exact stats (from the battle's request
   data) and the opponent's previewed species, updating every turn.
-- **Both-direction calcs.** For the active matchup it shows what the opponent
-  threatens against you and what you do back, with KO chances. The opponent's
-  hidden set is inferred from usage stats and tightens as the battle reveals
-  item, ability, moves, and Tera. Inferred numbers carry an `EST` tag. Spread
-  moves drop the 0.75x on their own when only one target is left on the board.
+- **Every move, both directions.** Two tabs, **Your moves** and **Their moves**,
+  each a compact grid: the attacking side's moves down the side (status moves
+  included), the Pokémon on the field across the top, damage % and a KO tag in
+  each cell. The opponent's hidden set is inferred from usage stats and tightens
+  as the battle reveals item, ability, moves, and Tera; guessed sets carry an
+  `EST` tag. Spread moves drop the 0.75x on their own when only one target is left.
 - **Same look as the calculator.** The overlay uses the web app's pixel theme
   (fonts bundled in the extension, no network request for them) inside a shadow
   root, so it never restyles Showdown and Showdown never restyles it.

@@ -1,5 +1,6 @@
 /* Overlay panel in the web app's pixel style (tokens from src/tokens.css via theme.ts).
-   Lives in a shadow root: `all: initial` stops Showdown's inherited text styles at the host. */
+   Lives in a shadow root: `all: initial` stops Showdown's inherited text styles at the host.
+   Compact on purpose: 400px wide, one moves-by-targets grid per tab. */
 :host {
   all: initial;
   position: fixed;
@@ -7,11 +8,11 @@
   right: 8px;
   z-index: 99999;
   display: block;
-  width: 560px;
+  width: 400px;
   max-width: calc(100vw - 16px);
   font-family: var(--font-ui);
-  font-size: 14px;
-  line-height: 1.35;
+  font-size: 13px;
+  line-height: 1.3;
   color: var(--text);
 }
 * {
@@ -31,14 +32,14 @@
 }
 
 .vgc-panel {
-  max-height: 85vh;
+  max-height: 70vh;
   overflow: auto;
   background: var(--panel);
   border: var(--px) solid var(--ink);
   box-shadow: var(--bevel), var(--shadow);
 }
 .vgc-panel::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 .vgc-panel::-webkit-scrollbar-thumb {
   background: var(--panel-hi);
@@ -52,15 +53,15 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 8px 7px 12px;
+  gap: 6px;
+  padding: 5px 6px 5px 10px;
   background: var(--panel-2);
   border-bottom: var(--px) solid var(--ink);
 }
 .vgc-title {
   flex: none;
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.4;
   text-transform: uppercase;
   white-space: nowrap;
@@ -71,12 +72,12 @@
   display: flex;
   flex: 1;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 .vgc-head .vgc-chip {
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 400;
   background: var(--ink);
   color: var(--accent-2);
@@ -108,11 +109,11 @@
 }
 .vgc-toggle {
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   font-family: var(--font-mono);
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
 }
 .vgc-chip {
@@ -121,10 +122,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   line-height: 1;
-  padding: 3px 6px;
+  padding: 2px 4px;
   border: var(--px) solid var(--ink);
   background: var(--panel-2);
   color: var(--muted);
@@ -149,7 +150,6 @@
   color: var(--accent-2);
 }
 .vgc-chip.est {
-  flex: none;
   background: #3a2a10;
   color: #f8d27a;
   cursor: help;
@@ -159,7 +159,7 @@
   min-width: 0;
   font: inherit;
   color: var(--text);
-  padding: 7px 8px;
+  padding: 5px 7px;
   background: var(--panel-lo);
   border: var(--px) solid var(--ink);
   box-shadow: inset var(--px) var(--px) 0 #000;
@@ -168,184 +168,149 @@
   color: var(--muted);
 }
 
-/* ---- Board ---- */
+/* ---- Tabs ---- */
 .vgc-body {
-  padding: 10px 12px 12px;
+  padding: 8px 10px 10px;
 }
-.vgc-muted,
-.vgc-none {
+.vgc-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.vgc-tab {
+  flex: 1;
+  padding: 6px 8px;
+  font-family: var(--font-display);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.vgc-tab[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--ink);
+  box-shadow: inset var(--px) var(--px) 0 var(--accent-hi), inset calc(-1 * var(--px)) calc(-1 * var(--px)) 0 var(--accent-lo),
+    2px 2px 0 var(--ink);
+}
+
+/* ---- Board ---- */
+.vgc-quiet {
   margin: 0;
   color: var(--muted);
+  font-size: 12px;
 }
 .vgc-field {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 4px;
+  margin-bottom: 8px;
 }
-.vgc-label {
-  margin-right: 2px;
-  font-family: var(--font-display);
-  font-size: 9px;
-  text-transform: uppercase;
-  color: var(--muted);
+.vgc-grid {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
 }
-.vgc-cols {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
-}
-.vgc-h {
-  margin: 0 0 6px;
-  font-family: var(--font-display);
-  font-size: 9px;
+.vgc-grid th,
+.vgc-grid td {
+  padding: 3px 5px;
   font-weight: 400;
-  line-height: 1.6;
-  text-transform: uppercase;
+  text-align: left;
+  vertical-align: middle;
 }
-.vgc-h.gap {
-  margin-top: 12px;
+.vgc-corner {
+  width: 32%;
 }
-.mine .vgc-h {
+.vgc-grid thead th {
+  padding-bottom: 5px;
+  vertical-align: bottom;
+  border-bottom: var(--px) solid var(--ink);
+}
+.vgc-mon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 5px;
+  min-width: 0;
+}
+.vgc-name {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+/* Your Pokémon in yellow, the opponent's in red, whichever side is attacking. */
+.vgc-grid.out .vgc-atk .vgc-name,
+.vgc-grid.in .vgc-def .vgc-name {
   color: var(--accent-2);
 }
-.theirs .vgc-h {
+.vgc-grid.out .vgc-def .vgc-name,
+.vgc-grid.in .vgc-atk .vgc-name {
   color: var(--accent-hi);
 }
-
-.vgc-mon {
-  margin-bottom: 6px;
-  padding: 5px 7px;
-  background: var(--panel-2);
-  border: var(--px) solid var(--ink);
-  box-shadow: inset var(--px) var(--px) 0 var(--panel-hi), 2px 2px 0 var(--ink);
-}
-.mine .vgc-mon {
-  border-left: 5px solid var(--accent-2);
-}
-.theirs .vgc-mon {
-  border-left: 5px solid var(--accent);
-}
-.vgc-col .vgc-mon.empty {
-  color: var(--muted);
-  background: none;
-  border: var(--px) dashed var(--panel-hi);
-  box-shadow: none;
-}
-.vgc-mon.fainted {
-  opacity: 0.5;
-}
-.vgc-mon-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
-}
-.vgc-species {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 15px;
-  font-weight: 700;
-}
 .vgc-hp {
-  flex: none;
   font-family: var(--font-mono);
-  font-size: 20px;
+  font-size: 17px;
   line-height: 1;
-}
-.vgc-hp-abs {
-  font-size: 16px;
   color: var(--muted);
 }
-.vgc-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
+.vgc-atk-row th {
+  padding-top: 5px;
+  background: var(--panel-2);
+  border-top: var(--px) solid var(--ink);
+  border-bottom: var(--px) solid var(--ink);
 }
-
-/* ---- Damage ---- */
-.vgc-dmgs {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.vgc-grid.out .vgc-atk {
+  box-shadow: inset 4px 0 0 var(--accent-2);
 }
-/* Dim the old numbers only if the new calc takes a moment, so quick HP ticks don't flicker. */
-.vgc-dmgs[aria-busy='true'] {
-  animation: vgc-dim 1ms steps(1, end) 300ms forwards;
-}
-.vgc-dmgs.dim {
-  opacity: 0.55;
-}
-@keyframes vgc-dim {
-  to {
-    opacity: 0.55;
-  }
-}
-.vgc-dmg {
-  padding: 5px 7px;
-  background: var(--panel-lo);
-  border: var(--px) solid var(--ink);
-}
-/* Rows animate in once per calc result, not on every board refresh. */
-.vgc-dmgs.fresh .vgc-dmg {
-  animation: px-in 160ms steps(4, end) both;
-  animation-delay: calc(var(--i, 0) * 40ms);
-}
-.vgc-dmg-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+.vgc-grid.in .vgc-atk {
+  box-shadow: inset 4px 0 0 var(--accent);
 }
 .vgc-move {
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 700;
 }
-.vgc-who {
+.vgc-move-row th,
+.vgc-move-row td {
+  border-bottom: 1px solid var(--panel-lo);
+}
+.vgc-cell {
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
-  color: var(--muted);
-}
-.vgc-dmg-num {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 8px;
-  margin-top: 2px;
 }
 .vgc-pct {
   font-family: var(--font-mono);
-  font-size: 26px;
+  font-size: 18px;
   line-height: 1;
-  white-space: nowrap;
   color: var(--accent-2);
 }
 .vgc-ko {
-  font-size: 13px;
+  margin-left: 5px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--amber);
 }
 .vgc-ko.good {
   color: var(--green);
 }
-.vgc-skel-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 6px 0;
+/* Cells animate in once per changed result, not on every board refresh. */
+.vgc-grid.fresh .vgc-move-row {
+  animation: px-in 160ms steps(4, end) both;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+/* Dim the old numbers only if the new calc takes a moment, so quick HP ticks don't flicker. */
+.vgc-grid[aria-busy='true'] {
+  animation: vgc-dim 1ms steps(1, end) 300ms forwards;
+}
+.vgc-grid.dim {
+  opacity: 0.55;
+}
+.vgc-skel-cell {
+  padding: 5px;
 }
 .skel {
   display: block;
-  height: 12px;
+  height: 10px;
   background: var(--panel-2);
   border: var(--px) solid var(--ink);
   animation: px-blink 900ms steps(2, end) infinite;
@@ -359,19 +324,19 @@
 
 /* ---- Ask the assistant ---- */
 .vgc-ask {
-  margin-top: 14px;
-  padding-top: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
   border-top: var(--px) solid var(--panel-hi);
 }
 .vgc-ask-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 .vgc-mic {
   flex: none;
-  padding: 0 10px;
+  padding: 0 8px;
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 8px;
   text-transform: uppercase;
 }
 .vgc-mic[aria-pressed='true'] {
@@ -380,7 +345,7 @@
   box-shadow: inset var(--px) var(--px) 0 var(--accent-hi), 2px 2px 0 var(--ink);
 }
 .vgc-answer {
-  margin-top: 8px;
+  margin-top: 6px;
   white-space: pre-wrap;
 }
 .vgc-answer:empty {
@@ -393,7 +358,7 @@
 @keyframes px-in {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(3px);
   }
   to {
     opacity: 1;
@@ -405,13 +370,18 @@
     opacity: 0.45;
   }
 }
+@keyframes vgc-dim {
+  to {
+    opacity: 0.55;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
     animation: none !important;
   }
   /* No delayed dim without motion: old numbers dim straight away. */
-  .vgc-dmgs[aria-busy='true'] {
+  .vgc-grid[aria-busy='true'] {
     opacity: 0.55;
   }
 }

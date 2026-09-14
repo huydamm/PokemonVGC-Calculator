@@ -14,8 +14,9 @@ import { computeLive, runHypothetical, battleLevel, type MyPokemon, type LiveRes
 import type { BattleSnapshot } from '../src/services/battle';
 import { setService } from '../src/services/sets';
 import { resolveFormat, liveFormatDef, type ResolvedFormat } from '../src/services/formats';
+import { nextTabIndex } from '../src/services/tabs';
 import { installFonts, themeSheet } from './theme';
-import { el, renderBoard } from './panel';
+import { el, renderBoard, type View } from './panel';
 import panelCss from './panel.css';
 
 const TAG = 'vgc-calc';
@@ -31,8 +32,26 @@ const toggle = el('button', 'vgc-btn vgc-toggle');
 toggle.type = 'button';
 toggle.setAttribute('aria-controls', 'vgc-body');
 const headChips = el('span', 'vgc-head-chips');
-// Board is re-rendered every snapshot; the ask area below it persists.
-const board = el('div', 'vgc-board', el('p', 'vgc-muted', 'Waiting for a battle…'));
+// Board is re-rendered every snapshot; the tabs and the ask area around it persist.
+const board = el('div', 'vgc-board', el('p', 'vgc-quiet', 'Waiting for a battle…'));
+board.id = 'vgc-board';
+board.setAttribute('role', 'tabpanel');
+const VIEWS: { id: View; label: string }[] = [
+  { id: 'out', label: 'Your moves' },
+  { id: 'in', label: 'Their moves' },
+];
+const tabs = VIEWS.map(({ id, label }) => {
+  const tab = el('button', 'vgc-btn vgc-tab', label);
+  tab.type = 'button';
+  tab.id = `vgc-tab-${id}`;
+  tab.setAttribute('role', 'tab');
+  tab.setAttribute('aria-controls', 'vgc-board');
+  return tab;
+});
+const tablist = el('div', 'vgc-tabs', ...tabs);
+tablist.setAttribute('role', 'tablist');
+tablist.setAttribute('aria-label', 'Damage direction');
+tablist.hidden = true; // until the first battle arrives
 const micBtn = el('button', 'vgc-btn vgc-mic', 'Mic');
 micBtn.type = 'button';
 micBtn.title = 'Ask by voice (click to start, click again to stop)';
@@ -43,7 +62,7 @@ qInput.placeholder = 'Ask… or tap Mic';
 qInput.setAttribute('aria-label', 'Ask the battle assistant');
 const aDiv = el('div', 'vgc-answer');
 aDiv.setAttribute('aria-live', 'polite');
-const body = el('div', 'vgc-body', board, el('div', 'vgc-ask', el('div', 'vgc-ask-row', micBtn, qInput), aDiv));
+const body = el('div', 'vgc-body', tablist, board, el('div', 'vgc-ask', el('div', 'vgc-ask-row', micBtn, qInput), aDiv));
 body.id = 'vgc-body';
 shadow.append(el('div', 'vgc-panel', el('header', 'vgc-head', el('span', 'vgc-title', 'VGC Live Calc'), headChips, toggle), body));
 
@@ -88,9 +107,13 @@ let latestMyPokemon: MyPokemon[] = [];
 let battleRoom = '';
 let shownResult = '';
 let wasBusy = false;
+let view: View = 'out';
+let lastRender: [BattleSnapshot, LiveResult | null, boolean] | null = null;
 
 function render(snapshot: BattleSnapshot, result: LiveResult | null, busy: boolean): void {
   mount();
+  lastRender = [snapshot, result, busy];
+  tablist.hidden = false;
   // Rows animate in only when the numbers changed, not on every HP/boost tick.
   const key = result ? JSON.stringify(result) : '';
   const animate = !busy && key !== shownResult;
@@ -98,8 +121,27 @@ function render(snapshot: BattleSnapshot, result: LiveResult | null, busy: boole
   // A calc spanning several snapshots stays dimmed instead of restarting the delayed dim each time.
   const dim = busy && wasBusy;
   wasBusy = busy;
-  renderBoard(board, headChips, snapshot, result, formatLabel(snapshot), { busy, animate, dim });
+  renderBoard(board, headChips, snapshot, result, formatLabel(snapshot), { busy, animate, dim }, view);
 }
+
+function setView(next: View): void {
+  view = next;
+  VIEWS.forEach(({ id }, i) => {
+    tabs[i].setAttribute('aria-selected', String(id === next));
+    tabs[i].tabIndex = id === next ? 0 : -1;
+  });
+  board.setAttribute('aria-labelledby', `vgc-tab-${next}`);
+  if (lastRender) render(...lastRender);
+}
+tabs.forEach((tab, i) => tab.addEventListener('click', () => setView(VIEWS[i].id)));
+tablist.addEventListener('keydown', (e) => {
+  const next = nextTabIndex(e.key, VIEWS.findIndex((v) => v.id === view), VIEWS.length);
+  if (next == null) return;
+  e.preventDefault();
+  setView(VIEWS[next].id);
+  tabs[next].focus();
+});
+setView('out');
 
 async function onSnapshot(snapshot: BattleSnapshot, myPokemon: MyPokemon[], roomId: string): Promise<void> {
   const room = roomId || snapshot.tier;
@@ -158,6 +200,7 @@ function formatContext(s: BattleSnapshot, r: LiveResult | null, myTeam: MyPokemo
       m.revealedMoves.length && `moves: ${m.revealedMoves.join('/')}`].filter(Boolean).join(', ');
     return `- ${m.species} ${hp}${extra ? `; ${extra}` : ''}`;
   };
+  const damaging = (lines: LiveResult['incoming']) => lines.filter((l) => l.kind === 'damage');
   const line = (l: LiveResult['incoming'][number]) =>
     `- ${l.estimated ? '[est] ' : ''}${l.attacker} ${l.move} -> ${l.defender}: ${l.percent[0]}-${l.percent[1]}% (${l.ko})`;
   return [
@@ -168,7 +211,7 @@ function formatContext(s: BattleSnapshot, r: LiveResult | null, myTeam: MyPokemo
     ...formatMyTeam(myTeam),
     s.theirTeam.length ? `Opponent team (from preview): ${s.theirTeam.join(', ')}.` : '',
     r ? 'Damage table for the active matchup (exact):' : '',
-    ...(r ? ['Threats to you:', ...r.incoming.map(line), 'Your damage:', ...r.outgoing.map(line)] : []),
+    ...(r ? ['Threats to you:', ...damaging(r.incoming).map(line), 'Your damage:', ...damaging(r.outgoing).map(line)] : []),
   ].filter(Boolean).join('\n');
 }
 

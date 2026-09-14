@@ -1,6 +1,9 @@
 /**
  * DOM builders for the overlay panel (no chrome APIs, no network). Every string
  * from the battle goes in as a text node, so page data can never inject markup.
+ *
+ * The board is one compact grid per direction: the attacking side's moves down
+ * the side, the defending side's live Pokémon across the top, damage % per cell.
  */
 import type { BattleMon, BattleSnapshot } from '../src/services/battle';
 import type { LiveResult, MatchupLine } from '../src/services/live';
@@ -8,8 +11,11 @@ import type { SideConditions } from '../src/services/conditions';
 
 type Child = Node | string | null | undefined | false;
 
+/** Which grid is showing: your moves into them, or their moves into you. */
+export type View = 'out' | 'in';
+
 /**
- * How the damage rows are shown: `busy` while a new calc runs (rows may be the previous
+ * How the damage cells are shown: `busy` while a new calc runs (cells may be the previous
  * board's), `animate` when the numbers changed, `dim` to dim at once rather than after a delay.
  */
 export interface RowState {
@@ -40,90 +46,94 @@ const SIDE_EFFECTS: [keyof SideConditions, string][] = [
   ['lightScreen', 'Light Screen'],
   ['auroraVeil', 'Aurora Veil'],
 ];
+const GUESSED = "Opponent's item or ability isn't revealed yet: set guessed from usage stats";
 
-function monCard(m: BattleMon | null): HTMLElement {
-  if (!m) return el('div', 'vgc-mon empty', 'Empty slot');
-  const species = el('span', 'vgc-species', m.species);
-  species.title = m.species;
-  const hp = el(
+const live = (side: (BattleMon | null)[]): BattleMon[] => side.filter((m): m is BattleMon => !!m && !m.fainted);
+const pct = (v: number): string => String(v >= 10 ? Math.round(v) : Math.round(v * 10) / 10);
+
+/** Name, HP and the damage-relevant chips (status, boosts, Tera); item and ability sit in the tooltip. */
+function monLabel(m: BattleMon, guessed: boolean): HTMLElement {
+  const name = el('span', 'vgc-name', m.species);
+  name.title = [m.species, m.item, m.ability].filter(Boolean).join(' · ');
+  return el(
     'span',
-    'vgc-hp',
-    m.known && m.hp != null ? el('span', 'vgc-hp-abs', `${m.hp}/${m.maxHP} `) : null,
-    m.fainted ? 'FNT' : `${m.hpPercent}%`,
-  );
-  const chips = [
+    'vgc-mon',
+    name,
+    el('span', 'vgc-hp', `${m.hpPercent}%`),
     m.status && chip(STATUS[m.status] ?? m.status.toUpperCase(), 'bad'),
     ...Object.entries(m.boosts)
       .filter(([, v]) => v)
       .map(([k, v]) => chip(`${v! > 0 ? '+' : ''}${v} ${STAT[k] ?? k}`, v! > 0 ? 'good' : 'neg')),
     m.terastallized && chip(`Tera ${m.teraType}`, 'tera'),
-    m.item && chip(m.item),
-    m.ability && chip(m.ability),
-  ].filter(Boolean) as HTMLElement[];
-  return el(
-    'div',
-    m.fainted ? 'vgc-mon fainted' : 'vgc-mon',
-    el('div', 'vgc-mon-top', species, hp),
-    chips.length > 0 && el('div', 'vgc-chips', ...chips),
+    guessed && chip('EST', 'est', GUESSED),
   );
 }
 
-function damageRow(l: MatchupLine, i: number): HTMLElement {
-  const row = el(
-    'div',
-    'vgc-dmg',
-    el(
-      'div',
-      'vgc-dmg-top',
-      el('span', 'vgc-move', l.move),
-      l.estimated && chip('EST', 'est', "Opponent's item or ability isn't revealed yet: set guessed from usage stats"),
-    ),
-    el('div', 'vgc-who', `${l.attacker} → ${l.defender}`),
-    el(
-      'div',
-      'vgc-dmg-num',
-      el('span', 'vgc-pct', `${l.percent[0]}-${l.percent[1]}%`),
-      l.ko && el('span', /guaranteed/i.test(l.ko) ? 'vgc-ko good' : 'vgc-ko', l.ko),
-    ),
-  );
-  row.style.setProperty('--i', String(Math.min(i, 8)));
-  return row;
-}
-
-/** Damage rows; while `busy` they are the previous board's (dimmed) or a skeleton on first load. */
-function damageList(rows: MatchupLine[] | undefined, { busy, animate, dim }: RowState): HTMLElement {
-  const list = el('div', animate ? 'vgc-dmgs fresh' : dim ? 'vgc-dmgs dim' : 'vgc-dmgs');
-  if (busy) list.setAttribute('aria-busy', 'true');
-  if (rows?.length) list.append(...rows.map(damageRow));
-  else if (rows) list.append(el('p', 'vgc-none', 'No damaging moves known yet.'));
-  else if (busy)
-    list.append(
-      el('span', 'sr-only', 'Calculating'),
-      ...[0, 1].map(() => el('div', 'vgc-skel-row', el('span', 'skel w-70'), el('span', 'skel w-40'))),
+function cell(line: MatchupLine | undefined, busy: boolean): HTMLElement {
+  const td = el('td', 'vgc-cell');
+  if (!line) td.append(el('span', 'vgc-quiet', busy ? '…' : '-'));
+  else if (line.kind === 'status') td.append(el('span', 'vgc-quiet', 'status'));
+  else if (line.kind === 'none') {
+    td.append(el('span', 'vgc-quiet', '0%'));
+    td.title = 'No effect';
+  } else {
+    td.title = `${line.percent[0]}-${line.percent[1]}%${line.ko ? `: ${line.ko}` : ''}`;
+    td.append(
+      el('span', 'vgc-pct', `${pct(line.percent[0])}-${pct(line.percent[1])}%`),
+      line.koShort && el('span', line.koChance === 1 ? 'vgc-ko good' : 'vgc-ko', line.koShort),
     );
-  else list.append(el('p', 'vgc-none', "Couldn't calculate this board."));
-  return list;
+  }
+  return td;
 }
 
-function sideColumn(
-  title: string,
-  damageTitle: string,
-  cls: string,
-  mons: (BattleMon | null)[],
-  rows: MatchupLine[] | undefined,
-  state: RowState,
-): HTMLElement {
-  return el(
-    'section',
-    `vgc-col ${cls}`,
-    el('h2', 'vgc-h', title),
-    ...mons.map(monCard),
-    el('h2', 'vgc-h gap', damageTitle),
-    damageList(rows, state),
-  );
+function wideRow(cols: number, cls: string, ...children: Child[]): HTMLElement {
+  const td = el('td', cls, ...children);
+  td.colSpan = cols;
+  return el('tr', '', td);
 }
 
-function fieldChips(s: BattleSnapshot): HTMLElement[] {
+function grid(view: View, attackers: BattleMon[], defenders: BattleMon[], lines: MatchupLine[] | undefined, state: RowState): HTMLElement {
+  const table = el('table', `vgc-grid ${view}${state.animate ? ' fresh' : state.dim ? ' dim' : ''}`);
+  if (state.busy) table.setAttribute('aria-busy', 'true');
+  const guessed = (species: string) => !!lines?.some((l) => (view === 'out' ? l.defender : l.attacker) === species && l.estimated);
+  const cols = defenders.length + 1;
+
+  const head = el('tr', '', el('th', 'vgc-corner', el('span', 'sr-only', 'Move')));
+  for (const d of defenders) {
+    const th = el('th', 'vgc-def', monLabel(d, view === 'out' && guessed(d.species)));
+    th.scope = 'col';
+    head.append(th);
+  }
+
+  const body = el('tbody');
+  let row = 0;
+  for (const a of attackers) {
+    const group = el('th', 'vgc-atk', monLabel(a, view === 'in' && guessed(a.species)));
+    group.colSpan = cols;
+    group.scope = 'colgroup';
+    body.append(el('tr', 'vgc-atk-row', group));
+
+    const own = lines?.filter((l) => l.attacker === a.species) ?? [];
+    const moves = [...new Set(own.map((l) => l.move))];
+    if (!moves.length && state.busy) {
+      body.append(wideRow(cols, 'vgc-skel-cell', el('span', 'skel w-70')), wideRow(cols, 'vgc-skel-cell', el('span', 'skel w-40')));
+    } else if (!moves.length) {
+      body.append(wideRow(cols, 'vgc-quiet', lines ? 'No known moves yet.' : "Couldn't calculate this board."));
+    }
+    for (const move of moves) {
+      const name = el('th', 'vgc-move', move);
+      name.scope = 'row';
+      name.title = move;
+      const tr = el('tr', 'vgc-move-row', name, ...defenders.map((d) => cell(own.find((l) => l.move === move && l.defender === d.species), state.busy)));
+      tr.style.setProperty('--i', String(Math.min(row++, 10)));
+      body.append(tr);
+    }
+  }
+  table.append(el('thead', '', head), body);
+  return table;
+}
+
+function fieldEffects(s: BattleSnapshot): string[] {
   const f = s.field;
   const on = [f.weather, f.terrain && `${f.terrain} Terrain`, f.trickRoom && 'Trick Room', f.gravity && 'Gravity'].filter(
     Boolean,
@@ -131,7 +141,7 @@ function fieldChips(s: BattleSnapshot): HTMLElement[] {
   for (const [who, conditions] of [['Your', f.mySide], ['Their', f.theirSide]] as const) {
     for (const [key, label] of SIDE_EFFECTS) if (conditions[key]) on.push(`${who} ${label}`);
   }
-  return on.length ? on.map((t) => chip(t, 'on')) : [chip('No field effects')];
+  return on;
 }
 
 /** Rebuild the board for a snapshot. While `state.busy`, `result` may still be the previous board's. */
@@ -142,15 +152,18 @@ export function renderBoard(
   result: LiveResult | null,
   formatLabel: string,
   state: RowState,
+  view: View,
 ): void {
   headChips.replaceChildren(chip(formatLabel, '', s.tier), chip(`Turn ${s.turn}`));
-  board.replaceChildren(
-    el('div', 'vgc-field', el('span', 'vgc-label', 'Field'), ...fieldChips(s)),
-    el(
-      'div',
-      'vgc-cols',
-      sideColumn('Your side', 'Your damage', 'mine', s.mine, result?.outgoing, state),
-      sideColumn('Opponent', 'Threats to you', 'theirs', s.theirs, result?.incoming, state),
-    ),
+  const [attackers, defenders, lines] =
+    view === 'out' ? [live(s.mine), live(s.theirs), result?.outgoing] : [live(s.theirs), live(s.mine), result?.incoming];
+  const effects = fieldEffects(s);
+  const nodes: Node[] = [];
+  if (effects.length) nodes.push(el('div', 'vgc-field', ...effects.map((t) => chip(t, 'on'))));
+  nodes.push(
+    attackers.length && defenders.length
+      ? grid(view, attackers, defenders, lines, state)
+      : el('p', 'vgc-quiet', 'Waiting for Pokémon on the field.'),
   );
+  board.replaceChildren(...nodes);
 }

@@ -104,6 +104,7 @@ const BOARDS = [
   {
     name: 'doubles',
     roomId: 'battle-gen9doublesou-1',
+    yourMoves: 8, // Incineroar 4 + Rillaboom 4, status moves included
     snapshot: {
       gen: 9, tier: '[Gen 9] Doubles OU', turn: 3,
       field: { gameType: 'Doubles', weather: 'Rain', gravity: false, trickRoom: false, mySide: side({ tailwind: true }), theirSide: side({ reflect: true }) },
@@ -113,9 +114,9 @@ const BOARDS = [
       ],
       theirs: [
         mon({ species: 'Landorus-Therian', level: 100, hpPercent: 76, status: 'brn', revealedMoves: ['Rock Slide'] }),
-        mon({ species: 'Flutter Mane', level: 100, hpPercent: 100, item: 'Booster Energy' }),
+        mon({ species: 'Amoonguss', level: 100, hpPercent: 100, item: 'Rocky Helmet' }),
       ],
-      myTeam: ['Incineroar', 'Rillaboom'], theirTeam: ['Landorus-Therian', 'Flutter Mane'],
+      myTeam: ['Incineroar', 'Rillaboom'], theirTeam: ['Landorus-Therian', 'Amoonguss'],
     },
     myPokemon: [
       { details: 'Incineroar, M', stats: { atk: 266, def: 216, spa: 176, spd: 306, spe: 156 }, maxHP: 394, moves: ['fakeout', 'knockoff', 'flareblitz', 'partingshot'], item: 'safetygoggles', ability: 'intimidate', teraType: 'Ghost' },
@@ -125,6 +126,7 @@ const BOARDS = [
   {
     name: 'champions',
     roomId: 'battle-gen9championsvgc2026regmc-2',
+    yourMoves: 8,
     snapshot: {
       gen: 9, tier: '[Gen 9 Champions] VGC 2026 Reg M-C', turn: 1,
       field: { gameType: 'Doubles', gravity: false, trickRoom: false, mySide: side(), theirSide: side() },
@@ -141,7 +143,6 @@ const BOARDS = [
     ],
   },
 ];
-const species = (b) => [...b.snapshot.mine, ...b.snapshot.theirs].map((m) => m.species);
 
 // ---- page-side checks ----
 const ROOT = `document.querySelector('#vgc-calc-root')?.shadowRoot`;
@@ -173,20 +174,25 @@ const BLUE_SCAN = (nodes) => `(() => {
   return out.slice(0, 5);
 })()`;
 const READY = (turn) =>
-  `(() => { const r = ${ROOT}; return !!r && r.querySelectorAll('.vgc-dmg').length > 0 && !r.querySelector('.vgc-dmgs[aria-busy]') && [...r.querySelectorAll('.vgc-head .vgc-chip')].some((c) => c.textContent === 'Turn ${turn}'); })()`;
+  `(() => { const r = ${ROOT}; return !!r && r.querySelectorAll('.vgc-cell .vgc-pct').length > 0 && !r.querySelector('.vgc-grid[aria-busy]') && [...r.querySelectorAll('.vgc-head .vgc-chip')].some((c) => c.textContent === 'Turn ${turn}'); })()`;
 const CHECK = `(async () => {
   const root = ${ROOT};
   const pct = root.querySelector('.vgc-pct');
+  const box = root.querySelector('.vgc-panel').getBoundingClientRect();
   return JSON.stringify({
-    rows: root.querySelectorAll('.vgc-dmg').length,
+    rows: root.querySelectorAll('.vgc-move-row').length,
     pcts: [...root.querySelectorAll('.vgc-pct')].map((e) => e.textContent),
     head: [...root.querySelectorAll('.vgc-head .vgc-chip')].map((e) => e.textContent),
+    size: [Math.round(box.width), Math.round(box.height)],
     fonts: await ${FONTS},
     pctFont: pct && getComputedStyle(pct).fontFamily,
     blue: ${BLUE_SCAN(`[root.host, ...root.querySelectorAll('*')]`)},
   });
 })()`;
-const WHO = `[...${ROOT}.querySelectorAll('.vgc-who')].map((e) => e.textContent).join(' | ')`;
+// A new battle must show a skeleton, never the last battle's numbers under the busy grid.
+const STALE = `!!${ROOT}.querySelector('.vgc-grid[aria-busy] .vgc-pct')`;
+const TAB = (i) =>
+  `(() => { const t = ${ROOT}.querySelectorAll('.vgc-tab')[${i}]; t.click(); return t.getAttribute('aria-selected') + ' ' + ${ROOT}.querySelectorAll('.vgc-move-row').length; })()`;
 // Visible page blocks with the extension's panel and document font sheet in place vs taken out
 // (Showdown's zero-size ad iframes come and go on their own, so they're ignored).
 const LAYOUT = `(() => {
@@ -233,30 +239,35 @@ async function main() {
     page.run(
       `window.postMessage({ source: 'vgc-calc', roomId: ${JSON.stringify(b.roomId)}, snapshot: ${JSON.stringify(b.snapshot)}, myPokemon: ${JSON.stringify(b.myPokemon)} }, '*')`,
     );
-  const panel = { x: 690, y: 0, width: 590, height: 900 };
+  const panel = { x: 860, y: 0, width: 420, height: 640 };
 
   for (const [i, b] of BOARDS.entries()) {
     await post(b);
     await sleep(150);
     if (i === 0) await page.shot('calculating', panel);
-    else {
-      const who = await page.run(WHO);
-      const gone = species(BOARDS[i - 1]).filter((s) => !species(b).includes(s)); // shared mons may legitimately reappear
-      const stale = gone.filter((s) => who.includes(s));
-      if (stale.length) errors.push(`assertion: the ${b.name} board still showed the last battle's numbers (${stale.join(', ')})`);
-    }
+    else if (await page.run(STALE)) errors.push(`assertion: the ${b.name} board still showed the last battle's numbers`);
     if (!(await waitFor(page.run, READY(b.snapshot.turn)))) {
       errors.push(`assertion: ${b.name} board never showed damage rows`);
       continue;
     }
     await sleep(500); // let px-in finish before the screenshot
     const c = JSON.parse(await page.run(CHECK));
-    console.log(`${b.name}:`, JSON.stringify({ rows: c.rows, head: c.head, pcts: c.pcts.slice(0, 4), fonts: c.fonts, pctFont: c.pctFont }));
+    console.log(`${b.name}:`, JSON.stringify({ rows: c.rows, size: c.size, head: c.head, pcts: c.pcts.slice(0, 4), fonts: c.fonts }));
+    if (c.rows !== b.yourMoves) errors.push(`assertion: ${b.name} shows ${c.rows} of your ${b.yourMoves} moves`);
+    // Compact: no wider than 420px and under 60% of a 900px-tall window.
+    if (c.size[0] > 420 || c.size[1] > 540) errors.push(`assertion: ${b.name} panel is ${c.size.join('x')}, too big`);
     if (c.pcts.some((p) => !/^\d+(\.\d+)?-\d+(\.\d+)?%$/.test(p))) errors.push(`assertion: ${b.name} has a malformed % (${c.pcts.join(', ')})`);
     if (c.fonts < 3) errors.push(`assertion: only ${c.fonts}/3 pixel fonts loaded from the extension`);
     if (!String(c.pctFont).includes('VGC VT323')) errors.push(`assertion: damage numbers not in VT323 (${c.pctFont})`);
     if (c.blue.length) errors.push(`assertion: blue/purple colours in the panel: ${c.blue.join(' | ')}`);
     await page.shot(b.name, panel);
+
+    // Both opponents here have usage data, so each shows its full four moves.
+    const [selected, theirRows] = (await page.run(TAB(1))).split(' ');
+    if (selected !== 'true' || Number(theirRows) !== 8) errors.push(`assertion: ${b.name} "Their moves" tab shows ${theirRows} of 8 moves (selected ${selected})`);
+    await sleep(400);
+    await page.shot(`${b.name}-theirs`, panel);
+    await page.run(TAB(0));
   }
 
   const moved = await page.run(LAYOUT);

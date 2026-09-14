@@ -124,8 +124,12 @@ against Showdown's own calc.** Goal is eventually a voice/LLM "Jarvis" agent.
   runs `computeLive`, renders. Calc+fetch live here so `host_permissions` bypass
   the page CSP. While a new board computes, the last numbers stay up dimmed
   (`aria-busy`); a skeleton shows only before the first result.
-- `panel.ts`: DOM builders for the board. Page and LLM strings go in as text
-  nodes only, never `innerHTML`.
+- `panel.ts`: DOM builders for the board, a 400px panel with a Your moves /
+  Their moves tab each showing one moves-by-targets grid. `computeLive` returns
+  every move for every pair (`kind`: damage / status / none, plus a short
+  `koShort` tag), so nothing is dropped. Page and LLM strings go in as text
+  nodes only, never `innerHTML`. Your moves come from the request data, matched
+  to the active forme by species with a prefix fallback (Tera/battle formes).
 - `theme.ts` + `panel.css` / `options.css`: the web app's pixel look. Tokens come
   from `src/tokens.css` (shared with `app.css`, `:root, :host`), bundled as text
   (esbuild `--loader:.css=text`) into a constructable stylesheet adopted by the
