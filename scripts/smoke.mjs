@@ -101,6 +101,10 @@ async function main() {
 
   await cdp(browserWs, 'Runtime.enable', {}, sessionId);
   await cdp(browserWs, 'Page.enable', {}, sessionId);
+  // TOUCH=1 emulates a touch screen (pointer: coarse): 44px targets, 16px controls.
+  if (process.env.TOUCH) {
+    await cdp(browserWs, 'Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }, sessionId);
+  }
   if (process.env.DARK) {
     await cdp(browserWs, 'Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] }, sessionId);
   }
@@ -118,6 +122,28 @@ async function main() {
   }
   await cdp(browserWs, 'Page.navigate', { url: URL }, sessionId);
   await sleep(3500);
+
+  // Touch-size audit of a panel: tap targets >= 44px, controls >= 16px font, pixel labels >= 10px.
+  const TOUCH_AUDIT = (panel) => `(()=>{
+    const vis=(e)=>e.getClientRects().length>0;
+    const root=document.querySelector(${JSON.stringify(panel)});
+    const label=(e)=>(e.getAttribute('aria-label')||e.textContent||e.tagName).trim().replace(/\\s+/g,' ').slice(0,22);
+    const small=[], zoom=[], tiny=[];
+    root.querySelectorAll('button,select,input,textarea,[role=tab],[role=radio],[role=button]').forEach((e)=>{
+      if(!vis(e)) return;
+      const box=e.type==='checkbox' ? e.closest('label') ?? e : e;
+      const r=box.getBoundingClientRect();
+      if(r.height<44) small.push(label(e)+' '+Math.round(r.width)+'x'+Math.round(r.height));
+      if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.tagName)){ const fs=parseFloat(getComputedStyle(e).fontSize); if(fs<16) zoom.push(label(e)+' '+fs+'px'); }
+    });
+    root.querySelectorAll('*').forEach((e)=>{
+      if(!vis(e) || ![...e.childNodes].some((n)=>n.nodeType===3&&n.textContent.trim())) return;
+      const cs=getComputedStyle(e); const fs=parseFloat(cs.fontSize);
+      if(cs.fontFamily.includes('Press Start') && fs<10) tiny.push(label(e)+' '+fs+'px');
+    });
+    return JSON.stringify({small, zoom, tiny});
+  })()`;
+  const touchAudit = async (panel) => JSON.parse((await run(TOUCH_AUDIT(panel))).result.value);
 
   // Drive the core flow via injected DOM interactions.
   const run = (expr) => cdp(browserWs, 'Runtime.evaluate', { expression: expr, awaitPromise: true }, sessionId);
@@ -162,6 +188,13 @@ async function main() {
   await waitFor(`document.querySelectorAll('.moves tbody tr').length > 0`, 30000);
 
   const rows = await count('.moves tbody tr');
+  // Names the widest elements poking past the viewport, at the moment overflow is seen.
+  const overflowDiag = async (when) => {
+    const wide = await run(
+      `JSON.stringify({scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, wide: [...document.querySelectorAll('body *')].filter((e)=>e.getClientRects().length&&e.getBoundingClientRect().right>document.documentElement.clientWidth+1).map((e)=>({tag:e.tagName.toLowerCase()+(typeof e.className==='string'&&e.className?'.'+e.className.trim().split(/\\s+/).join('.'):''),right:Math.round(e.getBoundingClientRect().right),w:Math.round(e.getBoundingClientRect().width)})).sort((a,b)=>b.w-a.w).slice(0,8)})`,
+    );
+    console.log(`overflow diagnostics (${when}):`, wide.result.value);
+  };
   if (rows === 0) {
     const diag = await run(
       `JSON.stringify({query: document.querySelector('.picker input')?.value, pickerRows: [...document.querySelectorAll('.picker-row')].slice(0,3).map(r=>r.textContent), skeleton: !!document.querySelector('.slot-skeleton'), slots: [...document.querySelectorAll('.slot')].map(s=>s.textContent.slice(0,120))})`,
@@ -173,6 +206,7 @@ async function main() {
       `JSON.stringify({h1: document.querySelector('h1')?.textContent, scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth})`,
     )
   ).result.value;
+  if (JSON.parse(layout).overflowX) await overflowDiag('after results render');
   // The result is visible without scrolling: HP panel and move menu sit at the top of the slots.
   const aboveFold = (
     await run(
@@ -225,10 +259,21 @@ async function main() {
   await waitFor(`document.querySelectorAll('.heatmap-table td').length === 25`, 10000);
   const heatCells = await count('.heatmap-table td');
   const overflowHeat = (await run(`document.documentElement.scrollWidth > document.documentElement.clientWidth`)).result.value;
+  if (overflowHeat) await overflowDiag('with heatmap open');
+  // Touch audit of the Calc panel (both slots filled), then Field below.
+  const touch = process.env.TOUCH ? { calc: await touchAudit('#main-panel-calc') } : null;
   // 5) Field tab shows the conditions panel; coming back keeps the Calc panel's state
   await clickTab('field');
   await sleep(400);
   const fieldButtons = await count('#main-panel-field .seg-btns button');
+  if (touch) {
+    touch.field = await touchAudit('#main-panel-field');
+    await clickTab('team');
+    await sleep(400);
+    touch.team = await touchAudit('#main-panel-team');
+    const pasteH = (await run(`document.querySelector('#paste')?.getBoundingClientRect().height ?? 0`)).result.value;
+    if (pasteH < 200) errors.push(`touch team: paste box is only ${Math.round(pasteH)}px tall`);
+  }
   await clickTab('calc');
   await sleep(500);
   const featuredAfter = await text('#main-panel-calc .hp-panel .hp-move');
@@ -275,6 +320,16 @@ async function main() {
   if (!draining) errors.push('assertion: HP drain animation did not start after picking a new move');
   if (featuredAfterEdit !== featuredBefore)
     errors.push(`assertion: editing the attacker changed the picked move (${featuredBefore} -> ${featuredAfterEdit})`);
+  if (touch) {
+    const coarse = (await run(`matchMedia('(pointer: coarse)').matches`)).result.value;
+    if (!coarse) errors.push('assertion: TOUCH=1 but (pointer: coarse) did not match, touch checks were not exercised');
+    for (const [panel, a] of Object.entries(touch)) {
+      if (a.small.length) errors.push(`touch ${panel}: ${a.small.length} targets under 44px, e.g. ${a.small.slice(0, 6).join(', ')}`);
+      if (a.zoom.length) errors.push(`touch ${panel}: ${a.zoom.length} controls under 16px (iOS zooms), e.g. ${a.zoom.slice(0, 4).join(', ')}`);
+      if (a.tiny.length) errors.push(`touch ${panel}: ${a.tiny.length} pixel labels under 10px, e.g. ${a.tiny.slice(0, 4).join(', ')}`);
+    }
+    console.log('touch audit (targets under 44px):', JSON.stringify({ calc: touch.calc.small.length, field: touch.field.small.length, team: touch.team.small.length }));
+  }
   if (keyFocus !== 'main-tab-team') errors.push(`assertion: ArrowRight focused ${keyFocus}, expected main-tab-team`);
 
   if (process.env.SHOT) {
