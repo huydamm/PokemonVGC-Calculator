@@ -1,29 +1,10 @@
 /* Pixel UI: flat retro palette (no gradients, no blue/purple chrome), square
    2px ink outlines, bevelled panels, hard offset shadows, stepped motion.
-   Pokemon type colours stay canonical (they're data, set inline). */
+   Pokemon type colours stay canonical (they're data, set inline). Tokens live in tokens.css,
+   shared with the extension overlay. */
+@import './tokens.css';
+
 :root {
-  --bg: #16130f;
-  --panel: #231f1a;
-  --panel-2: #2e2821;
-  --panel-hi: #4a4033;
-  --panel-lo: #0e0c0a;
-  --ink: #050403;
-  --text: #f3ead7;
-  --muted: #b3a994;
-  --accent: #e5483b;
-  --accent-hi: #ff7a6e;
-  --accent-lo: #9e2a20;
-  --accent-2: #f8c03a;
-  --green: #6fd35a;
-  --amber: #f0a03a;
-  --red: #ff6a5c;
-  --px: 2px;
-  --shadow: 4px 4px 0 var(--ink);
-  --bevel: inset var(--px) var(--px) 0 var(--panel-hi), inset calc(-1 * var(--px)) calc(-1 * var(--px)) 0 var(--panel-lo);
-  --t: 160ms steps(4, end);
-  --font-display: 'Press Start 2P', ui-monospace, monospace;
-  --font-ui: 'Pixelify Sans', system-ui, sans-serif;
-  --font-mono: 'VT323', ui-monospace, monospace;
   font-family: var(--font-ui);
   font-size: 16px;
 }
