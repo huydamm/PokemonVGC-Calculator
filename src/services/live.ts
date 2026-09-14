@@ -9,6 +9,7 @@
  */
 import type { StatsTable } from '@pkmn/data';
 import { createPokemon, createMove, runCalc, buildField, Pokemon } from './calc';
+import { gen } from './data';
 import type { SetService } from './sets';
 import type { ResolvedFormat } from './formats';
 import type { Conditions, SideConditions } from './conditions';
@@ -29,16 +30,25 @@ export interface MatchupLine {
   attacker: string;
   defender: string;
   move: string;
+  /** min-max % of the defender's max HP; [0, 0] unless `kind` is 'damage'. */
   percent: [number, number];
+  /** Engine KO text ("guaranteed 2HKO"), relabelled for a chipped target; '' when none. */
   ko: string;
-  /** true while the opponent's set is still partly inferred (show a "~"). */
+  /** Short KO tag for tight layouts (see `koShort`); '' when none. */
+  koShort: string;
+  /** 1 = guaranteed KO, below 1 = a chance; undefined when there's no KO. */
+  koChance?: number;
+  /** 'damage', 'status' (a status move), or 'none' (no effect on this target, or no move data). */
+  kind: 'damage' | 'status' | 'none';
+  /** true while the opponent's set is still partly inferred. */
   estimated: boolean;
 }
 
+/** Every move of every active attacker against every active target, both directions. */
 export interface LiveResult {
-  /** Opponent attacking you — "what can kill me". */
+  /** Opponent attacking you: "what can kill me". */
   incoming: MatchupLine[];
-  /** You attacking the opponent — "what KOs them". */
+  /** You attacking the opponent: "what KOs them". */
   outgoing: MatchupLine[];
 }
 
@@ -118,7 +128,7 @@ function conditionsFor(f: BattleSnapshot['field'], attackerMine: boolean): Condi
     tabletsOfRuin: false,
     vesselOfRuin: false,
     crit: false,
-    singleTarget: false, // decided per move from the board in bestMove
+    singleTarget: false, // decided per move from the board in boardMove
 
     attackerSide: attackerMine ? mine : theirs,
     defenderSide: attackerMine ? theirs : mine,
@@ -147,29 +157,64 @@ function boardMove(name: string, formatId: string, board: Board): ReturnType<typ
   return spreadHitsOne(move.target, board) ? createMove(name, formatId, true) : move;
 }
 
-/** Best (highest max-roll) move from `moves` for attacker vs defender. */
-function bestMove(
+// KO chance is computed from the defender's CURRENT HP, so on a chipped target
+// "OHKO/2HKO" (which imply from full) read as a plain "KO".
+const koLabel = (text: string, fullHP: boolean): string =>
+  fullHP ? text : text.replace(/\bOHKO\b/g, 'KO').replace(/\b(\d)HKO\b/g, 'KO in $1');
+
+/**
+ * Short KO tag: OHKO / 2HKO from full HP, KO / "KO in 2" on a chipped target. '' for no KO
+ * or one slower than 4 hits (the full text still has it), so tight layouts show only real threats.
+ */
+export function koShort(hits: number, fullHP: boolean): string {
+  if (!hits || hits > 4) return '';
+  if (hits === 1) return fullHP ? 'OHKO' : 'KO';
+  return fullHP ? `${hits}HKO` : `KO in ${hits}`;
+}
+
+type MoveLine = Pick<MatchupLine, 'move' | 'percent' | 'ko' | 'koShort' | 'koChance' | 'kind'>;
+
+/** Every move against one defender, in set order: damaging, status and no-effect moves alike. */
+function moveLines(
   attacker: Pokemon,
   defender: Pokemon,
   moves: string[],
   field: ReturnType<typeof buildField>,
   formatId: string,
   board: Board,
-): { move: string; percent: [number, number]; ko: string } | null {
-  let best: { move: string; percent: [number, number]; ko: string } | null = null;
-  for (const name of moves) {
+  fullHP: boolean,
+): MoveLine[] {
+  return moves.map((name) => {
+    const none: MoveLine = { move: gen.moves.get(name)?.name ?? name, percent: [0, 0], ko: '', koShort: '', kind: 'none' };
+    if (!gen.moves.get(name)) return none;
     try {
       const mv = boardMove(name, formatId, board);
+      if (mv.category === 'Status') return { ...none, kind: 'status' };
       const r = runCalc(attacker, defender, mv, field, formatId);
-      if (r.percent[1] <= 0) continue; // skip status / no-damage moves
-      if (!best || r.percent[1] > best.percent[1]) {
-        best = { move: mv.name, percent: r.percent, ko: r.ko.text };
-      }
+      if (r.range[1] <= 0) return none;
+      return {
+        move: mv.name,
+        percent: r.percent,
+        ko: koLabel(r.ko.text, fullHP),
+        koShort: koShort(r.ko.n, fullHP),
+        koChance: r.ko.n ? r.ko.chance : undefined,
+        kind: 'damage',
+      };
     } catch {
-      /* skip status / unhandled moves */
+      return none; // the engine throws on immunities
     }
-  }
-  return best;
+  });
+}
+
+/**
+ * Your request entry for an active mon. The active forme can differ from the request's
+ * species (Ogerpon-Wellspring-Tera vs Ogerpon-Wellspring), so fall back to a prefix match.
+ */
+function findMine(mon: BattleMon, myPokemon: MyPokemon[]): MyPokemon | undefined {
+  const id = toID(mon.species);
+  const ids = myPokemon.map((p) => toID(speciesOf(p.details)));
+  const i = ids.indexOf(id);
+  return myPokemon[i >= 0 ? i : ids.findIndex((p) => p && (id.startsWith(p) || p.startsWith(id)))];
 }
 
 /** Compute both-direction matchups for the current board. */
@@ -182,13 +227,7 @@ export async function computeLive(
   const live = (mon: BattleMon | null): mon is BattleMon => !!mon && !mon.fainted;
   const gt = snapshot.field.gameType;
 
-  const mine = snapshot.mine.filter(live).map((mon) => ({
-    mon,
-    ...buildMine(
-      mon,
-      myPokemon.find((p) => toID(speciesOf(p.details)) === toID(mon.species)),
-    ),
-  }));
+  const mine = snapshot.mine.filter(live).map((mon) => ({ mon, ...buildMine(mon, findMine(mon, myPokemon)) }));
   const theirs = await Promise.all(
     snapshot.theirs.filter(live).map(async (mon) => ({ mon, ...(await buildOpponent(mon, sets, resolved)) })),
   );
@@ -198,35 +237,20 @@ export async function computeLive(
   const incoming: MatchupLine[] = [];
   const outgoing: MatchupLine[] = [];
 
-  // KO chance is computed from the defender's CURRENT HP, so on a chipped target
-  // relabel "OHKO/2HKO" (which imply from full) as a plain "KO".
-  const koLabel = (text: string, fullHP: boolean): string =>
-    fullHP ? text : text.replace(/\bOHKO\b/g, 'KO').replace(/\b(\d)HKO\b/g, 'KO in $1');
-
   for (const t of theirs) {
     for (const m of mine) {
-      const inc = bestMove(t.pokemon, m.pokemon, t.moves, incomingField, resolved.def.id, {
-        foes: mine.length,
-        ally: theirs.length > 1,
-      });
-      if (inc)
-        incoming.push({
-          attacker: t.mon.species, defender: m.mon.species, move: inc.move, percent: inc.percent,
-          ko: koLabel(inc.ko, m.mon.hpPercent >= 100), estimated: !t.fullyRevealed,
-        });
+      const board = { foes: mine.length, ally: theirs.length > 1 };
+      for (const l of moveLines(t.pokemon, m.pokemon, t.moves, incomingField, resolved.def.id, board, m.mon.hpPercent >= 100)) {
+        incoming.push({ attacker: t.mon.species, defender: m.mon.species, estimated: !t.fullyRevealed, ...l });
+      }
     }
   }
   for (const m of mine) {
     for (const t of theirs) {
-      const out = bestMove(m.pokemon, t.pokemon, m.moves, outgoingField, resolved.def.id, {
-        foes: theirs.length,
-        ally: mine.length > 1,
-      });
-      if (out)
-        outgoing.push({
-          attacker: m.mon.species, defender: t.mon.species, move: out.move, percent: out.percent,
-          ko: koLabel(out.ko, t.mon.hpPercent >= 100), estimated: !t.fullyRevealed,
-        });
+      const board = { foes: theirs.length, ally: mine.length > 1 };
+      for (const l of moveLines(m.pokemon, t.pokemon, m.moves, outgoingField, resolved.def.id, board, t.mon.hpPercent >= 100)) {
+        outgoing.push({ attacker: m.mon.species, defender: t.mon.species, estimated: !t.fullyRevealed, ...l });
+      }
     }
   }
   return { incoming, outgoing };

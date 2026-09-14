@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeLive, runHypothetical, spreadHitsOne, type MyPokemon } from './live';
+import { computeLive, runHypothetical, spreadHitsOne, koShort, type MyPokemon } from './live';
 import type { BattleSnapshot, BattleMon } from './battle';
 import type { SetService, SuggestedSet } from './sets';
 import type { ResolvedFormat } from './formats';
@@ -46,23 +46,58 @@ const myPokemon: MyPokemon[] = [
 ];
 
 describe('computeLive', () => {
-  it('computes both directions with real damage numbers', async () => {
+  it('lists every move both ways, in set order, with real damage numbers', async () => {
     const r = await computeLive(snapshot, myPokemon, fakeSets, resolved);
 
-    const inc = r.incoming.find((l) => l.attacker === 'Landorus' && l.defender === 'Incineroar')!;
-    expect(inc).toBeDefined();
-    expect(inc.percent[1]).toBeGreaterThan(0);
-    expect(inc.ko).toBeTruthy();
-    expect(inc.estimated).toBe(true); // Landorus item/ability not revealed
-
-    const out = r.outgoing.find((l) => l.attacker === 'Incineroar' && l.defender === 'Landorus')!;
-    expect(out).toBeDefined();
-    expect(out.percent[1]).toBeGreaterThan(0);
+    // All four of your moves (display names, request order), status moves included.
+    const out = r.outgoing.filter((l) => l.attacker === 'Incineroar' && l.defender === 'Landorus');
+    expect(out.map((l) => l.move)).toEqual(['Fake Out', 'Parting Shot', 'Flare Blitz', 'Knock Off']);
+    expect(out.find((l) => l.move === 'Parting Shot')!.kind).toBe('status');
+    const best = out.reduce((a, b) => (b.percent[1] > a.percent[1] ? b : a));
+    expect(best.kind).toBe('damage');
+    expect(best.ko).toBeTruthy();
+    expect(best.estimated).toBe(true); // Landorus item/ability not revealed
     // Opponent built at the battle's level 100 (not the set's 50): a level-50
     // Landorus would be ~half HP/def and read well over 100%.
-    expect(out.percent[1]).toBeLessThan(80);
-    // Incineroar's best vs a Landorus should be one of its real moves (display names).
-    expect(['Fake Out', 'Parting Shot', 'Flare Blitz', 'Knock Off']).toContain(out.move);
+    expect(best.percent[1]).toBeLessThan(80);
+
+    // The opponent's revealed move first, then its inferred set, four at most.
+    const inc = r.incoming.filter((l) => l.attacker === 'Landorus' && l.defender === 'Incineroar');
+    expect(inc.map((l) => l.move)).toEqual(['Sandsear Storm', 'Earth Power', 'Sludge Bomb', 'Substitute']);
+    expect(inc.find((l) => l.move === 'Earth Power')!.percent[1]).toBeGreaterThan(0);
+  });
+
+  it('keeps moves that do nothing to a target, marked, instead of dropping them', async () => {
+    const withFlyer = { ...snapshot, mine: [...snapshot.mine, mon({ species: 'Talonflame', known: true })] };
+    const r = await computeLive(withFlyer, myPokemon, fakeSets, resolved);
+    const ep = r.incoming.find((l) => l.defender === 'Talonflame' && l.move === 'Earth Power')!;
+    expect(ep.kind).toBe('none');
+    expect(ep.percent).toEqual([0, 0]);
+  });
+
+  it('finds your moves when the active forme differs from the request species', async () => {
+    const tera = { ...snapshot, mine: [mon({ species: 'Ogerpon-Wellspring-Tera', known: true, terastallized: true, teraType: 'Water' })] };
+    const me: MyPokemon[] = [
+      {
+        details: 'Ogerpon-Wellspring, F',
+        stats: { atk: 276, def: 204, spa: 112, spd: 176, spe: 256 },
+        maxHP: 301,
+        moves: ['ivycudgel', 'hornleech', 'followme', 'spikyshield'],
+        item: 'wellspringmask',
+        ability: 'waterabsorb',
+      },
+    ];
+    const r = await computeLive(tera, me, fakeSets, resolved);
+    expect(r.outgoing.map((l) => l.move)).toEqual(['Ivy Cudgel', 'Horn Leech', 'Follow Me', 'Spiky Shield']);
+  });
+
+  it('short KO tags read from current HP', () => {
+    expect(koShort(1, true)).toBe('OHKO');
+    expect(koShort(2, true)).toBe('2HKO');
+    expect(koShort(1, false)).toBe('KO');
+    expect(koShort(3, false)).toBe('KO in 3');
+    expect(koShort(0, true)).toBe('');
+    expect(koShort(5, true)).toBe(''); // slower than 4 hits isn't worth a tag
   });
 
   it('runHypothetical calcs an arbitrary matchup (the run_calc tool)', async () => {
