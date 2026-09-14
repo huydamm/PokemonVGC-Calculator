@@ -53,31 +53,33 @@ export function Results({
       >
         {(id) =>
           id === 'moves' ? (
-            <table className="moves">
-              <thead>
-                <tr>
-                  <th>Move</th>
-                  <th>Damage</th>
-                  <th>%</th>
-                  <th>Result</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(({ name, r, category }, i) => (
-                  <tr
-                    key={name}
-                    className={name === featuredName ? 'featured-row' : ''}
-                    onClick={() => onFeature(name)}
-                    style={{ cursor: 'pointer', '--i': Math.min(i, 12) } as CSSProperties}
-                  >
-                    <td>{name}</td>
-                    <td className="num">{r ? `${r.range[0]}–${r.range[1]}` : '-'}</td>
-                    <td className="num">{r ? `${r.percent[0]}–${r.percent[1]}%` : '-'}</td>
-                    <td className="ko">{r ? koText(r) : category === 'Status' ? 'status' : 'no effect (0%)'}</td>
+            <div className="moves-scroll">
+              <table className="moves">
+                <thead>
+                  <tr>
+                    <th>Move</th>
+                    <th>Damage</th>
+                    <th>%</th>
+                    <th>Result</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map(({ name, r, category }, i) => (
+                    <tr
+                      key={name}
+                      className={name === featuredName ? 'featured-row' : ''}
+                      onClick={() => onFeature(name)}
+                      style={{ cursor: 'pointer', '--i': Math.min(i, 12) } as CSSProperties}
+                    >
+                      <td>{name}</td>
+                      <td className="num">{r ? `${r.range[0]}–${r.range[1]}` : '-'}</td>
+                      <td className="num">{r ? `${r.percent[0]}–${r.percent[1]}%` : '-'}</td>
+                      <td className="ko">{r ? koText(r) : category === 'Status' ? 'status' : 'no effect (0%)'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <Heatmap
               attacker={attacker}

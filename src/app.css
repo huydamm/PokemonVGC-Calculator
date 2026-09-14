@@ -889,6 +889,11 @@ textarea {
 }
 
 /* ---- Moves table ---- */
+/* Long rolls on a narrow phone scroll the table, never the page; the padding keeps the offset shadow. */
+.moves-scroll {
+  overflow-x: auto;
+  padding: 0 4px 4px 0;
+}
 .moves {
   width: 100%;
   border-collapse: collapse;
@@ -1320,6 +1325,10 @@ textarea::-webkit-scrollbar-thumb,
 /* Overrides for phones and touch screens live at the end of the file: they share
    specificity with the base rules above, so source order decides. */
 @media (max-width: 400px) {
+  .moves th,
+  .moves td {
+    padding-inline: 0.4rem;
+  }
   .heat {
     width: 3rem;
   }
