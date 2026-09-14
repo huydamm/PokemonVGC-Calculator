@@ -99,6 +99,16 @@ keyed on defender + move; the defender's hit shake is bumped from the pick handl
 alternates two identical keyframes so it restarts without remounting the card (a
 remount would reload the sprite).
 
+Phone and touch rules live at the end of `app.css` (source order matters: they share
+specificity with the base rules). Touch sizing keys off `@media (pointer: coarse)`, not
+width: 44px targets, 16px form controls (iOS Safari zooms below that), pixel labels
+at least 10px. Layout keys off space: `max-width: 760px` (stacked slots, HP panel above
+both, compact header, full-width tabs), `(orientation: landscape) and (max-height: 500px)`
+(phones on their side: one-row header, sprite-only team strip), and `@container` queries on
+`.slot` so editors adapt to the slot's own width on phones and tablets. Hover styles sit
+under `@media (hover: hover)`. `npm run smoke` with `TOUCH=1` fails on any target under
+44px, control under 16px, pixel label under 10px; run it at phone sizes (`WIDTH`/`HEIGHT`).
+
 ## Live-battle Chrome extension (`extension/`)
 
 An MV3 overlay that reads a live `play.pokemonshowdown.com` battle and shows

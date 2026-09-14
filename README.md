@@ -85,7 +85,7 @@ npm run dev      # start the dev server at http://localhost:5173
 | `npm run preview` | Serve the production build locally. |
 | `npm test` | Run the unit / integration suite (Vitest). |
 | `npm run prove` | Verify the engine wiring against the bundled Showdown engine. |
-| `npm run smoke` | Drive the full UI through its tabs in headless Chrome and assert results render with zero console errors (dev server must be running). |
+| `npm run smoke` | Drive the full UI through its tabs in headless Chrome and assert results render with zero console errors (dev server must be running). `WIDTH=375 HEIGHT=667 TOUCH=1 npm run smoke` emulates a phone and also fails on tap targets under 44px or form controls under 16px. |
 
 ## Usage
 
