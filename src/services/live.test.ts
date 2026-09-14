@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeLive, runHypothetical, type MyPokemon } from './live';
+import { computeLive, runHypothetical, spreadHitsOne, type MyPokemon } from './live';
 import type { BattleSnapshot, BattleMon } from './battle';
 import type { SetService, SuggestedSet } from './sets';
 import type { ResolvedFormat } from './formats';
@@ -76,6 +76,35 @@ describe('computeLive', () => {
     expect(res.percent[1]).toBeLessThan(80); // opponent at battle level 100
     expect(res.estimated).toBe(true); // defender is the inferred opponent
     expect(res.ko).toBeTruthy();
+  });
+
+  it('spread moves count their targets on the board', () => {
+    expect(spreadHitsOne('allAdjacentFoes', { foes: 1, ally: true })).toBe(true);
+    expect(spreadHitsOne('allAdjacentFoes', { foes: 2, ally: false })).toBe(false);
+    expect(spreadHitsOne('allAdjacent', { foes: 1, ally: true })).toBe(false); // Earthquake still hits the partner
+    expect(spreadHitsOne('allAdjacent', { foes: 1, ally: false })).toBe(true);
+    expect(spreadHitsOne('normal', { foes: 1, ally: false })).toBe(false);
+  });
+
+  it('a spread move into a lone foe skips the 0.75x', async () => {
+    const sandsear = { ...landorusSet, moves: ['Sandsear Storm'] } as SuggestedSet;
+    const sets: SetService = { getCommonSet: async () => sandsear };
+    const board = (mine: BattleMon[]): BattleSnapshot => ({ ...snapshot, mine });
+    const incineroar = snapshot.mine[0]!;
+    const maxInto = async (s: BattleSnapshot) =>
+      (await computeLive(s, myPokemon, sets, resolved)).incoming.find((l) => l.defender === 'Incineroar')!.percent[1];
+    const alone = await maxInto(board([incineroar]));
+    const pair = await maxInto(board([incineroar, mon({ species: 'Tyranitar', known: true })]));
+    expect(pair / alone).toBeCloseTo(0.75, 1);
+  });
+
+  it('run_calc counts spread targets on the board too', async () => {
+    const req = { attacker: 'Landorus', defender: 'Incineroar', move: 'Rock Slide', attackerSide: 'theirs' } as const;
+    const pair = { ...snapshot, mine: [snapshot.mine[0], mon({ species: 'Tyranitar', known: true })] };
+    const one = await runHypothetical(req, snapshot, myPokemon, fakeSets, resolved);
+    const two = await runHypothetical(req, pair, myPokemon, fakeSets, resolved);
+    if ('error' in one || 'error' in two) throw new Error('calc failed');
+    expect(two.percent[1] / one.percent[1]).toBeCloseTo(0.75, 1);
   });
 
   it('Champions battles calc with Champions move data (Psyshield Bash 90 BP)', async () => {

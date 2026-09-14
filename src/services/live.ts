@@ -118,11 +118,33 @@ function conditionsFor(f: BattleSnapshot['field'], attackerMine: boolean): Condi
     tabletsOfRuin: false,
     vesselOfRuin: false,
     crit: false,
-    // ponytail: live calcs assume spread moves hit both targets; count live actives if one-target hits matter
-    singleTarget: false,
+    singleTarget: false, // decided per move from the board in bestMove
+
     attackerSide: attackerMine ? mine : theirs,
     defenderSide: attackerMine ? theirs : mine,
   };
+}
+
+/** Live mons on the board around one attack: the defending side's count and whether the attacker has a partner. */
+interface Board {
+  foes: number;
+  ally: boolean;
+}
+
+/**
+ * Doubles: whether a spread move actually hits a single target on this board, so it
+ * skips the 0.75x. Earthquake-style moves (`allAdjacent`) also hit the attacker's ally.
+ */
+export function spreadHitsOne(target: string, board: Board): boolean {
+  if (target === 'allAdjacentFoes') return board.foes <= 1;
+  if (target === 'allAdjacent') return board.foes + (board.ally ? 1 : 0) <= 1;
+  return false;
+}
+
+/** The move as it lands on this board: a spread move into a single target skips the 0.75x. */
+function boardMove(name: string, formatId: string, board: Board): ReturnType<typeof createMove> {
+  const move = createMove(name, formatId);
+  return spreadHitsOne(move.target, board) ? createMove(name, formatId, true) : move;
 }
 
 /** Best (highest max-roll) move from `moves` for attacker vs defender. */
@@ -132,11 +154,12 @@ function bestMove(
   moves: string[],
   field: ReturnType<typeof buildField>,
   formatId: string,
+  board: Board,
 ): { move: string; percent: [number, number]; ko: string } | null {
   let best: { move: string; percent: [number, number]; ko: string } | null = null;
   for (const name of moves) {
     try {
-      const mv = createMove(name, formatId);
+      const mv = boardMove(name, formatId, board);
       const r = runCalc(attacker, defender, mv, field, formatId);
       if (r.percent[1] <= 0) continue; // skip status / no-damage moves
       if (!best || r.percent[1] > best.percent[1]) {
@@ -182,7 +205,10 @@ export async function computeLive(
 
   for (const t of theirs) {
     for (const m of mine) {
-      const inc = bestMove(t.pokemon, m.pokemon, t.moves, incomingField, resolved.def.id);
+      const inc = bestMove(t.pokemon, m.pokemon, t.moves, incomingField, resolved.def.id, {
+        foes: mine.length,
+        ally: theirs.length > 1,
+      });
       if (inc)
         incoming.push({
           attacker: t.mon.species, defender: m.mon.species, move: inc.move, percent: inc.percent,
@@ -192,7 +218,10 @@ export async function computeLive(
   }
   for (const m of mine) {
     for (const t of theirs) {
-      const out = bestMove(m.pokemon, t.pokemon, m.moves, outgoingField, resolved.def.id);
+      const out = bestMove(m.pokemon, t.pokemon, m.moves, outgoingField, resolved.def.id, {
+        foes: theirs.length,
+        ally: mine.length > 1,
+      });
       if (out)
         outgoing.push({
           attacker: m.mon.species, defender: t.mon.species, move: out.move, percent: out.percent,
@@ -295,7 +324,10 @@ export async function runHypothetical(
     const defender =
       defSide === 'mine' ? mkMine(req.defender, req.defenderBoosts) : await mkOpp(req.defender, req.defenderBoosts);
     const field = buildField(snapshot.field.gameType, conditionsFor(snapshot.field, req.attackerSide === 'mine'));
-    const r = runCalc(attacker, defender, createMove(req.move, resolved.def.id), field, resolved.def.id);
+    // Spread targets are counted on the current board, so this agrees with the live damage table.
+    const live = (side: (BattleMon | null)[]) => side.filter((m) => m && !m.fainted).length;
+    const board = { foes: live(snapshot[defSide]), ally: live(snapshot[req.attackerSide]) > 1 };
+    const r = runCalc(attacker, defender, boardMove(req.move, resolved.def.id, board), field, resolved.def.id);
     return {
       attacker: req.attacker,
       defender: req.defender,
