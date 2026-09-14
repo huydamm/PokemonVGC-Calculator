@@ -115,15 +115,35 @@ An MV3 overlay that reads a live `play.pokemonshowdown.com` battle and shows
 both-direction damage calcs, reusing the services above. **Working and verified
 against Showdown's own calc.** Goal is eventually a voice/LLM "Jarvis" agent.
 
-- `inject.ts` — MAIN-world script (an isolated content script can't see
+- `inject.ts`: MAIN-world script (an isolated content script can't see
   `window.app`). Reads `app.curRoom.battle` + `battle.myPokemon` every 500ms,
-  posts a plain snapshot via `postMessage`. Must send only plain/cloneable data
+  posts a plain snapshot plus `roomId` (the panel's "new battle" key: teams and
+  formes change mid-battle) via `postMessage`. Must send only plain/cloneable data
   (raw client objects break `postMessage` and freeze updates).
-- `content.ts` — isolated-world panel. Resolves the format from the live `tier`,
+- `content.ts`: isolated-world panel. Resolves the format from the live `tier`,
   runs `computeLive`, renders. Calc+fetch live here so `host_permissions` bypass
-  the page CSP.
-- `probe.js` — throwaway: paste into the Showdown console to dump the raw
+  the page CSP. While a new board computes, the last numbers stay up dimmed
+  (`aria-busy`); a skeleton shows only before the first result.
+- `panel.ts`: DOM builders for the board. Page and LLM strings go in as text
+  nodes only, never `innerHTML`.
+- `theme.ts` + `panel.css` / `options.css`: the web app's pixel look. Tokens come
+  from `src/tokens.css` (shared with `app.css`, `:root, :host`), bundled as text
+  (esbuild `--loader:.css=text`) into a constructable stylesheet adopted by the
+  panel's shadow root, so Showdown's CSS and ours never meet. Fonts ship in
+  `extension/fonts` (OFL) under `VGC `-prefixed family names and are declared on
+  the document (Chrome ignores `@font-face` inside a shadow root).
+- `probe.js`: throwaway, paste into the Showdown console to dump the raw
   `battle` object shape.
+
+`npm run smoke:ext` (after `build:ext`, needs network) loads the real unpacked
+extension into headless Chrome via CDP `Extensions.loadUnpacked` over
+`--remote-debugging-pipe` (Chrome 137+ ignores `--load-extension`), opens Showdown,
+posts Doubles OU and Champions boards from the page, and fails on missing numbers,
+the last battle's numbers under a new battle, unloaded fonts, blue/purple colours,
+a moved Showdown layout, a broken collapse, animations under reduced motion, or an
+unthemed options page. `content.ts` only accepts messages from its own window.
+Live calcs and the agent's `run_calc` count spread targets on the board
+(`spreadHitsOne` in `live.ts`).
 
 Key facts: opponent HP is **percent-only** and item/ability/moves/tera are hidden
 until revealed (your side is exact, from `myPokemon`). Always build mons at the
@@ -138,6 +158,7 @@ npm test           # Vitest suite
 npm run typecheck  # tsc -p tsconfig.json
 npm run gen:legal  # regenerate legal-species/legal-items/champions-dex-patch/champions-moves JSON (needs network)
 npm run build:ext  # bundle the extension to extension/dist (gitignored)
+npm run smoke:ext  # preview the built overlay on real Showdown (SHOTS=<dir> for screenshots)
 ```
 
 Load the extension: `chrome://extensions` → Developer mode → Load unpacked →
