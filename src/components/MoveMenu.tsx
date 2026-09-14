@@ -32,7 +32,7 @@ export function MoveMenu({
 
   return (
     <div className="move-menu" role="radiogroup" aria-label="Attacker move" onKeyDown={onKeyDown}>
-      {moves.map(({ name, type, category, r }, i) => {
+      {moves.map(({ name, type, category, spread, r }, i) => {
         const max = r?.percent[1] ?? 0;
         const checked = i === current;
         return (
@@ -50,7 +50,10 @@ export function MoveMenu({
             onClick={() => onSelect(name)}
           >
             <span className="move-btn-name">{name}</span>
-            <span className="move-btn-pct">{max > 0 ? `${max}%` : category === 'Status' ? 'status' : '0%'}</span>
+            <span className="move-btn-pct">
+              {max > 0 ? `${max}%` : category === 'Status' ? 'status' : '0%'}
+              {spread && <span title="Spread move: 0.75x damage in Doubles"> · spread</span>}
+            </span>
           </button>
         );
       })}

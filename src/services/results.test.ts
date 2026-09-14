@@ -59,6 +59,30 @@ describe('immune targets', () => {
   });
 });
 
+describe('spread moves', () => {
+  const run = (singleTarget: boolean, gameType: 'Singles' | 'Doubles' = 'Doubles') =>
+    computeMoveResults({
+      attacker: makeSet({ species: 'Garchomp', ability: 'Rough Skin', level: 50, moves: ['Earthquake', 'Dragon Claw'] }),
+      defender: incineroar,
+      attackerMods: DEFAULT_MODS,
+      defenderMods: DEFAULT_MODS,
+      conditions: { ...DEFAULT_CONDITIONS, singleTarget },
+      gameType,
+      formatId: 'gen9ou',
+      teraEnabled: false,
+    });
+
+  it('flags the 0.75x in Doubles, and a one-target hit drops both the flag and the reduction', () => {
+    const both = run(false);
+    const one = run(true);
+    expect(both.map((r) => r.spread)).toEqual([true, false]);
+    expect(one.map((r) => r.spread)).toEqual([false, false]);
+    expect(one[0].r!.range[1]).toBeGreaterThan(both[0].r!.range[1]);
+    expect(one[1].r!.range).toEqual(both[1].r!.range);
+    expect(run(false, 'Singles')[0].spread).toBe(false);
+  });
+});
+
 describe('resolveFeatured', () => {
   const rows = [
     { name: 'Fake Out', r: { range: [7, 9] } },

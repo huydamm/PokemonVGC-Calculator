@@ -37,6 +37,16 @@ describe('engine: known damage calcs', () => {
     // because the spread move eats the 0.75x doubles multiplier.
     expect(spread.range[1]).toBeLessThan(single.range[1]);
   });
+
+  it('a spread move hitting one target skips the 0.75x; single-target moves are untouched', () => {
+    const zard = () => createPokemon('Charizard', { evs: { spa: 252 }, nature: 'Modest' });
+    const both = runCalc(zard(), garchomp(), createMove('Heat Wave'), vgcField()).range[1];
+    const one = runCalc(zard(), garchomp(), createMove('Heat Wave', undefined, true), vgcField()).range[1];
+    expect(both / one).toBeCloseTo(0.75, 1);
+    expect(runCalc(zard(), garchomp(), createMove('Flamethrower', undefined, true), vgcField()).range).toEqual(
+      runCalc(zard(), garchomp(), createMove('Flamethrower'), vgcField()).range,
+    );
+  });
 });
 
 describe('multi-hit moves', () => {

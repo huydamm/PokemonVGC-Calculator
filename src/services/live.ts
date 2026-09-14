@@ -118,6 +118,8 @@ function conditionsFor(f: BattleSnapshot['field'], attackerMine: boolean): Condi
     tabletsOfRuin: false,
     vesselOfRuin: false,
     crit: false,
+    // ponytail: live calcs assume spread moves hit both targets; count live actives if one-target hits matter
+    singleTarget: false,
     attackerSide: attackerMine ? mine : theirs,
     defenderSide: attackerMine ? theirs : mine,
   };

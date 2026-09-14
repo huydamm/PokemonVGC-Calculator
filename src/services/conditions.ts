@@ -23,6 +23,8 @@ export interface Conditions {
   tabletsOfRuin: boolean; // -25% Atk (Wo-Chien? -> actually Ting-Lu is Vessel) see calc
   vesselOfRuin: boolean; // -25% SpA
   crit: boolean;
+  /** Doubles: spread moves hit only one target (no 0.75x), e.g. the other foe fainted or protected. */
+  singleTarget: boolean;
   attackerSide: SideConditions;
   defenderSide: SideConditions;
 }
@@ -65,6 +67,7 @@ export const DEFAULT_CONDITIONS: Conditions = {
   tabletsOfRuin: false,
   vesselOfRuin: false,
   crit: false,
+  singleTarget: false,
   attackerSide: emptySide(),
   defenderSide: emptySide(),
 };
@@ -90,14 +93,16 @@ const STAGE_LABELS: Record<string, string> = { atk: 'Atk', def: 'Def', spa: 'SpA
 /**
  * Short labels for every non-default battle condition and modifier. Shown on the
  * Calc tab (so settings moved to the Field tab are never invisible) and counted
- * in the Field tab badge. Tera is left out: its toggle lives on the slot.
+ * in the Field tab badge. Tera is left out: its toggle lives on the slot. The
+ * one-target spread toggle only counts in Doubles, where it does anything.
  */
-export function activeConditionSummary(c: Conditions, attacker: Mods, defender: Mods): string[] {
+export function activeConditionSummary(c: Conditions, attacker: Mods, defender: Mods, doubles = true): string[] {
   const out: string[] = [];
   if (c.weather) out.push(c.weather);
   if (c.terrain) out.push(`${c.terrain} Terrain`);
   if (c.gravity) out.push('Gravity');
   if (c.crit) out.push('Critical hit');
+  if (doubles && c.singleTarget) out.push('Spread hits 1 target');
   for (const [key, label] of RUIN_LABELS) if (c[key]) out.push(label);
   for (const [side, who] of [['attackerSide', 'attacker'], ['defenderSide', 'defender']] as const) {
     for (const key of Object.keys(SIDE_LABELS) as (keyof SideConditions)[]) {

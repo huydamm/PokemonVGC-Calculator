@@ -58,6 +58,10 @@ crits, Tera and Mega), **plus** the parts Showdown makes you do by hand:
 - **Battle-style result.** Pick a move from the attacker's move menu and the
   defender's HP bar drains to the damage range, right above the Pokémon, with
   the exact rolls, % and KO chance beside it.
+- **Spread moves done right.** In Doubles, moves that hit both foes (Earthquake,
+  Heat Wave, Rock Slide) take the 0.75x spread reduction and are tagged in the move
+  menu. When only one target is left, tick "Spread move hits 1 target" on the Field
+  tab to drop it.
 - **Bulk heatmap.** For the featured move, the Heatmap tab shows a colour-banded
   grid of how much HP and defensive investment the defender needs to survive the hit.
 - **Pick your format.** Gen 9 OU, Pokémon Champions, or VGC 2026. Game type,

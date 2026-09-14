@@ -28,4 +28,10 @@ describe('activeConditionSummary', () => {
       'Burned (defender)',
     ]);
   });
+
+  it('lists the one-target spread toggle only in Doubles', () => {
+    const c = { ...DEFAULT_CONDITIONS, singleTarget: true };
+    expect(activeConditionSummary(c, DEFAULT_MODS, DEFAULT_MODS)).toEqual(['Spread hits 1 target']);
+    expect(activeConditionSummary(c, DEFAULT_MODS, DEFAULT_MODS, false)).toEqual([]);
+  });
 });

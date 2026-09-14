@@ -108,7 +108,10 @@ export function ConditionsPanel({
   setAttackerMods,
   setDefenderMods,
   onReset,
+  doubles,
 }: {
+  /** Doubles format: shows the one-target spread toggle. */
+  doubles: boolean;
   conditions: Conditions;
   setConditions: (c: Conditions) => void;
   attackerMods: Mods;
@@ -159,6 +162,13 @@ export function ConditionsPanel({
 
       <div className="cond-flags">
         <Check label="Critical hit" checked={c.crit} onChange={(v) => set({ crit: v })} />
+        {doubles && (
+          <Check
+            label="Spread move hits 1 target (no 0.75x)"
+            checked={c.singleTarget}
+            onChange={(v) => set({ singleTarget: v })}
+          />
+        )}
         <Check label="Gravity" checked={c.gravity} onChange={(v) => set({ gravity: v })} />
         <Check label="Sword of Ruin (−Def)" checked={c.swordOfRuin} onChange={(v) => set({ swordOfRuin: v })} />
         <Check label="Beads of Ruin (−SpD)" checked={c.beadsOfRuin} onChange={(v) => set({ beadsOfRuin: v })} />

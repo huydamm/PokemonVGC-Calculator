@@ -1,6 +1,6 @@
 /** Per-move damage results for the Calc view, computed once and shared by the move menu, HP bar, Moves table and Heatmap. */
 import type { PokemonSet } from '@pkmn/sets';
-import { createPokemon, createMove, runCalc, buildField, withCrit, type DamageResult } from './calc';
+import { createPokemon, createMove, runCalc, buildField, withCrit, isSpreadMove, type DamageResult } from './calc';
 import { setToPokemonOptions } from './team';
 import type { Conditions, Mods } from './conditions';
 import type { GameType } from './formats';
@@ -11,6 +11,8 @@ export interface MoveResult {
   type?: string;
   /** Physical / Special / Status: tells an immune hit ("0%") from a status move. */
   category?: string;
+  /** The Doubles spread reduction (0.75x) applies to this hit. */
+  spread?: boolean;
   /** null when the engine can't produce a result (status move edge cases, immunities). */
   r: DamageResult | null;
 }
@@ -43,14 +45,16 @@ export function computeMoveResults(i: MoveResultInput): MoveResult[] {
   return (i.attacker.moves ?? []).filter(Boolean).map((name) => {
     let type: string | undefined;
     let category: string | undefined;
+    let spread = false;
     try {
-      const move = withCrit(createMove(name, i.formatId), i.conditions.crit);
+      const move = withCrit(createMove(name, i.formatId, i.conditions.singleTarget), i.conditions.crit);
       type = move.type;
       category = move.category;
-      return { name, type, category, r: runCalc(atk, def, move, field, i.formatId) };
+      spread = i.gameType === 'Doubles' && category !== 'Status' && isSpreadMove(move);
+      return { name, type, category, spread, r: runCalc(atk, def, move, field, i.formatId) };
     } catch {
       // Includes immunities: the engine throws on a 0-damage result.
-      return { name, type, category, r: null };
+      return { name, type, category, spread, r: null };
     }
   });
 }

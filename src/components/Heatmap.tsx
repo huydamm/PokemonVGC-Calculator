@@ -68,7 +68,8 @@ export function Heatmap({
               evs: { ...defender.set.evs, hp, [defKey]: defEv },
             });
             try {
-              return runCalc(atk, def, withCrit(createMove(moveName, formatId), conditions.crit), field, formatId).percent[1];
+              const move = withCrit(createMove(moveName, formatId, conditions.singleTarget), conditions.crit);
+              return runCalc(atk, def, move, field, formatId).percent[1];
             } catch {
               return 0; // the engine throws on 0-damage results
             }

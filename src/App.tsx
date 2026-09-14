@@ -416,8 +416,8 @@ export default function App() {
   );
 
   const fieldSummary = useMemo(
-    () => activeConditionSummary(conditions, attackerMods, defenderMods),
-    [conditions, attackerMods, defenderMods],
+    () => activeConditionSummary(conditions, attackerMods, defenderMods, format.gameType === 'Doubles'),
+    [conditions, attackerMods, defenderMods, format.gameType],
   );
 
   // Move results are computed once here and shared by the move menu, HP bar,
@@ -620,6 +620,7 @@ export default function App() {
       setAttackerMods={setAttackerMods}
       setDefenderMods={setDefenderMods}
       onReset={resetConditions}
+      doubles={format.gameType === 'Doubles'}
     />
   );
 
