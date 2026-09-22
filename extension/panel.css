@@ -102,8 +102,7 @@
   transform: translate(2px, 2px);
   box-shadow: inset var(--px) var(--px) 0 var(--panel-lo);
 }
-.vgc-btn:focus-visible,
-.vgc-input:focus-visible {
+.vgc-btn:focus-visible {
   outline: var(--px) solid var(--accent-2);
   outline-offset: 2px;
 }
@@ -154,20 +153,6 @@
   color: #f8d27a;
   cursor: help;
 }
-.vgc-input {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
-  color: var(--text);
-  padding: 5px 7px;
-  background: var(--panel-lo);
-  border: var(--px) solid var(--ink);
-  box-shadow: inset var(--px) var(--px) 0 #000;
-}
-.vgc-input::placeholder {
-  color: var(--muted);
-}
-
 /* ---- Tabs ---- */
 .vgc-body {
   padding: 8px 10px 10px;
@@ -322,37 +307,38 @@
   width: 40%;
 }
 
-/* ---- Ask the assistant ---- */
-.vgc-ask {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: var(--px) solid var(--panel-hi);
-}
-.vgc-ask-row {
+/* ---- Plan: trial line and locked prompt ---- */
+.vgc-plan {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
 }
-.vgc-mic {
-  flex: none;
-  padding: 0 8px;
+.vgc-plan .vgc-btn {
+  margin-left: auto;
+}
+.vgc-locked p {
+  margin: 0 0 10px;
+}
+.vgc-locked .vgc-row {
+  display: flex;
+  gap: 8px;
+}
+.vgc-buy {
+  padding: 6px 10px;
   font-family: var(--font-display);
   font-size: 8px;
   text-transform: uppercase;
-}
-.vgc-mic[aria-pressed='true'] {
-  background: var(--accent);
   color: var(--ink);
-  box-shadow: inset var(--px) var(--px) 0 var(--accent-hi), 2px 2px 0 var(--ink);
+  background: var(--accent-2);
+  box-shadow: inset var(--px) var(--px) 0 #ffe08a, 2px 2px 0 var(--ink);
 }
-.vgc-answer {
-  margin-top: 6px;
-  white-space: pre-wrap;
-}
-.vgc-answer:empty {
-  display: none;
-}
-.vgc-answer.busy {
-  color: var(--muted);
+@media (hover: hover) {
+  .vgc-buy:hover {
+    background: #ffd35c;
+  }
 }
 
 @keyframes px-in {

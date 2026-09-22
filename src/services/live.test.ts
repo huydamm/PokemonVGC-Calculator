@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeLive, runHypothetical, spreadHitsOne, koShort, type MyPokemon } from './live';
+import { computeLive, spreadHitsOne, koShort, type MyPokemon } from './live';
 import type { BattleSnapshot, BattleMon } from './battle';
 import type { SetService, SuggestedSet } from './sets';
 import type { ResolvedFormat } from './formats';
@@ -100,19 +100,6 @@ describe('computeLive', () => {
     expect(koShort(5, true)).toBe(''); // slower than 4 hits isn't worth a tag
   });
 
-  it('runHypothetical calcs an arbitrary matchup (the run_calc tool)', async () => {
-    const res = await runHypothetical(
-      { attacker: 'Incineroar', defender: 'Landorus', move: 'Flare Blitz', attackerSide: 'mine' },
-      snapshot, myPokemon, fakeSets, resolved,
-    );
-    expect('error' in res).toBe(false);
-    if ('error' in res) return;
-    expect(res.percent[1]).toBeGreaterThan(0);
-    expect(res.percent[1]).toBeLessThan(80); // opponent at battle level 100
-    expect(res.estimated).toBe(true); // defender is the inferred opponent
-    expect(res.ko).toBeTruthy();
-  });
-
   it('spread moves count their targets on the board', () => {
     expect(spreadHitsOne('allAdjacentFoes', { foes: 1, ally: true })).toBe(true);
     expect(spreadHitsOne('allAdjacentFoes', { foes: 2, ally: false })).toBe(false);
@@ -133,21 +120,11 @@ describe('computeLive', () => {
     expect(pair / alone).toBeCloseTo(0.75, 1);
   });
 
-  it('run_calc counts spread targets on the board too', async () => {
-    const req = { attacker: 'Landorus', defender: 'Incineroar', move: 'Rock Slide', attackerSide: 'theirs' } as const;
-    const pair = { ...snapshot, mine: [snapshot.mine[0], mon({ species: 'Tyranitar', known: true })] };
-    const one = await runHypothetical(req, snapshot, myPokemon, fakeSets, resolved);
-    const two = await runHypothetical(req, pair, myPokemon, fakeSets, resolved);
-    if ('error' in one || 'error' in two) throw new Error('calc failed');
-    expect(two.percent[1] / one.percent[1]).toBeCloseTo(0.75, 1);
-  });
-
   it('Champions battles calc with Champions move data (Psyshield Bash 90 BP)', async () => {
     const champions = { def: getFormat('gen9champions'), stats: { id: null }, sets: { id: null } } as ResolvedFormat;
-    const req = { attacker: 'Incineroar', defender: 'Landorus', move: 'Psyshield Bash', attackerSide: 'mine' } as const;
-    const ch = await runHypothetical(req, snapshot, myPokemon, fakeSets, champions);
-    const ou = await runHypothetical(req, snapshot, myPokemon, fakeSets, resolved);
-    if ('error' in ch || 'error' in ou) throw new Error('calc failed');
-    expect(ch.percent[1]).toBeGreaterThan(ou.percent[1]);
+    const bash = [{ ...myPokemon[0], moves: ['psyshieldbash'] }];
+    const max = async (r: ResolvedFormat) =>
+      (await computeLive(snapshot, bash, fakeSets, r)).outgoing.find((l) => l.move === 'Psyshield Bash')!.percent[1];
+    expect(await max(champions)).toBeGreaterThan(await max(resolved));
   });
 });

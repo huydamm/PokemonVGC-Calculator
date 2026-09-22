@@ -86,3 +86,12 @@ button:active {
     transition: none !important;
   }
 }
+button.quiet {
+  color: var(--text);
+  background: var(--panel-2);
+  box-shadow: var(--bevel), 2px 2px 0 var(--ink);
+}
+.small {
+  margin: 14px 0 0;
+  font-size: 13px;
+}

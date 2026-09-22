@@ -9,13 +9,12 @@
   <body>
     <main class="opt">
       <h1>VGC Live Calc</h1>
-      <p class="hint">Your Anthropic API key is stored locally in this browser and only sent to api.anthropic.com.</p>
-      <label class="field" for="key">API key</label>
-      <input id="key" type="password" placeholder="sk-ant-..." autocomplete="off" />
+      <p class="hint" id="status" role="status">Checking your plan…</p>
       <div class="row">
-        <button id="save" type="button">Save</button>
-        <span id="status" role="status"></span>
+        <button id="pay" type="button">Buy / manage</button>
+        <button id="login" type="button" class="quiet">Log in</button>
       </div>
+      <p class="hint small">Paid already on another browser? Log in with the email you paid with.</p>
     </main>
     <script src="dist/options.js"></script>
   </body>

@@ -4,11 +4,12 @@
  * ignores --load-extension), opens play.pokemonshowdown.com, posts sample battle
  * boards the way inject.ts does, and checks the overlay renders damage numbers
  * in the pixel theme without moving Showdown's layout. Also checks the options page.
+ * The profile starts fresh each run, so the paywall is in its free trial.
  *
  * Usage: npm run build:ext && npm run smoke:ext   (SHOTS=<dir> saves screenshots; needs network)
  */
 import { spawn } from 'node:child_process';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +19,8 @@ const EXTENSION = fileURLToPath(new URL('../extension', import.meta.url));
 const SHOWDOWN = 'https://play.pokemonshowdown.com/';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
+const PROFILE = join(tmpdir(), 'vgc-ext-smoke');
+rmSync(PROFILE, { recursive: true, force: true }); // a reused profile would age the trial into the locked prompt
 
 const chrome = spawn(
   CHROME,
@@ -27,7 +30,7 @@ const chrome = spawn(
     '--no-sandbox',
     '--remote-debugging-pipe',
     '--enable-unsafe-extension-debugging',
-    `--user-data-dir=${join(tmpdir(), 'vgc-ext-smoke')}`,
+    `--user-data-dir=${PROFILE}`,
     'about:blank',
   ],
   { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] },
@@ -183,6 +186,7 @@ const CHECK = `(async () => {
     rows: root.querySelectorAll('.vgc-move-row').length,
     pcts: [...root.querySelectorAll('.vgc-pct')].map((e) => e.textContent),
     head: [...root.querySelectorAll('.vgc-head .vgc-chip')].map((e) => e.textContent),
+    plan: root.querySelector('.vgc-plan')?.hidden ? '' : root.querySelector('.vgc-plan')?.textContent,
     size: [Math.round(box.width), Math.round(box.height)],
     fonts: await ${FONTS},
     pctFont: pct && getComputedStyle(pct).fontFamily,
@@ -213,6 +217,7 @@ const OPTIONS = `(async () => JSON.stringify({
   fonts: await ${FONTS},
   bg: getComputedStyle(document.body).backgroundColor,
   title: getComputedStyle(document.querySelector('h1')).fontFamily,
+  status: document.querySelector('#status').textContent,
   blue: ${BLUE_SCAN(`document.querySelectorAll('body *')`)},
 }))()`;
 
@@ -253,6 +258,7 @@ async function main() {
     await sleep(500); // let px-in finish before the screenshot
     const c = JSON.parse(await page.run(CHECK));
     console.log(`${b.name}:`, JSON.stringify({ rows: c.rows, size: c.size, head: c.head, pcts: c.pcts.slice(0, 4), fonts: c.fonts }));
+    if (!/^Free trial: 7 days left/.test(c.plan ?? '')) errors.push(`assertion: ${b.name} shows no trial line ("${c.plan}")`);
     if (c.rows !== b.yourMoves) errors.push(`assertion: ${b.name} shows ${c.rows} of your ${b.yourMoves} moves`);
     // Compact: no wider than 420px and under 60% of a 900px-tall window.
     if (c.size[0] > 420 || c.size[1] > 540) errors.push(`assertion: ${b.name} panel is ${c.size.join('x')}, too big`);
@@ -292,7 +298,8 @@ async function main() {
   const options = await openPage(`${origin}/options.html`);
   await sleep(1500);
   const o = JSON.parse(await options.run(OPTIONS));
-  console.log('options:', JSON.stringify({ fonts: o.fonts, bg: o.bg, title: o.title }));
+  console.log('options:', JSON.stringify({ fonts: o.fonts, bg: o.bg, title: o.title, status: o.status }));
+  if (!o.status.startsWith('Free trial')) errors.push(`assertion: options page plan status is "${o.status}"`);
   if (o.fonts < 3) errors.push(`assertion: options page loaded ${o.fonts}/3 pixel fonts`);
   if (o.bg !== 'rgb(22, 19, 15)') errors.push(`assertion: options page background is ${o.bg}, not the theme's`);
   if (!String(o.title).includes('VGC Press Start 2P')) errors.push(`assertion: options title not in Press Start 2P (${o.title})`);
