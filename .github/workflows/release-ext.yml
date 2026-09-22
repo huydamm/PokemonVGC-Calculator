@@ -1,0 +1,52 @@
+name: Release extension
+
+# Tag ext-vX.Y.Z (matching extension/manifest.json) to release: the tested zip goes on a
+# GitHub Release, then, after approval on the chrome-web-store environment, to the store.
+on:
+  push:
+    tags: ['ext-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  package:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: extension-zip
+          path: release
+      - name: Tag matches manifest version
+        run: |
+          v=$(node -p "require('./extension/manifest.json').version")
+          [ "ext-v$v" = "$GITHUB_REF_NAME" ] || { echo "::error::tag $GITHUB_REF_NAME does not match manifest version $v"; exit 1; }
+      - run: gh release create "$GITHUB_REF_NAME" release/*.zip --title "Extension $GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  publish:
+    needs: package
+    runs-on: ubuntu-latest
+    environment: chrome-web-store
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v8
+        with:
+          name: extension-zip
+          path: release
+      - run: node scripts/cws-publish.mjs release/*.zip
+        env:
+          CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_ITEM_ID: ${{ secrets.CWS_ITEM_ID }}

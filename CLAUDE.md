@@ -113,7 +113,7 @@ under `@media (hover: hover)`. `npm run smoke` with `TOUCH=1` fails on any targe
 
 An MV3 overlay that reads a live `play.pokemonshowdown.com` battle and shows
 both-direction damage calcs, reusing the services above. **Working and verified
-against Showdown's own calc.** Goal is eventually a voice/LLM "Jarvis" agent.
+against Showdown's own calc.**
 
 - `inject.ts`: MAIN-world script (an isolated content script can't see
   `window.app`). Reads `app.curRoom.battle` + `battle.myPokemon` every 500ms,
@@ -127,7 +127,7 @@ against Showdown's own calc.** Goal is eventually a voice/LLM "Jarvis" agent.
 - `panel.ts`: DOM builders for the board, a 400px panel with a Your moves /
   Their moves tab each showing one moves-by-targets grid. `computeLive` returns
   every move for every pair (`kind`: damage / status / none, plus a short
-  `koShort` tag), so nothing is dropped. Page and LLM strings go in as text
+  `koShort` tag), so nothing is dropped. Page strings go in as text
   nodes only, never `innerHTML`. Your moves come from the request data, matched
   to the active forme by species with a prefix fallback (Tera/battle formes).
 - `theme.ts` + `panel.css` / `options.css`: the web app's pixel look. Tokens come
@@ -136,6 +136,15 @@ against Showdown's own calc.** Goal is eventually a voice/LLM "Jarvis" agent.
   panel's shadow root, so Showdown's CSS and ours never meet. Fonts ship in
   `extension/fonts` (OFL) under `VGC `-prefixed family names and are declared on
   the document (Chrome ignores `@font-face` inside a shadow root).
+- `background.ts` + `options.ts`: paid access through ExtensionPay's HTTP API,
+  called directly (its `extpay` client library is AGPL; don't add it). Id
+  `EXTPAY_ID`; the per-install API key lives in `chrome.storage.sync` and is only
+  created when checkout or log-in opens. The background answers `vgc-license`
+  (cached in `chrome.storage.local` so payers keep access when ExtensionPay is
+  down; the trial runs from the first check) and opens checkout on `vgc-pay`,
+  log-in on `vgc-login`. `content.ts` checks once per battle room and turns the license into
+  paid / trial (days-left line) / locked (buy prompt, no calc) with `access()` in
+  `src/services/license.ts`. The web app is free and never imports any of this.
 - `probe.js`: throwaway, paste into the Showdown console to dump the raw
   `battle` object shape.
 
@@ -146,7 +155,7 @@ posts Doubles OU and Champions boards from the page, and fails on missing number
 the last battle's numbers under a new battle, unloaded fonts, blue/purple colours,
 a moved Showdown layout, a broken collapse, animations under reduced motion, or an
 unthemed options page. `content.ts` only accepts messages from its own window.
-Live calcs and the agent's `run_calc` count spread targets on the board
+Live calcs count spread targets on the board
 (`spreadHitsOne` in `live.ts`).
 
 Key facts: opponent HP is **percent-only** and item/ability/moves/tera are hidden
@@ -163,7 +172,16 @@ npm run typecheck  # tsc -p tsconfig.json
 npm run gen:legal  # regenerate legal-species/legal-items/champions-dex-patch/champions-moves JSON (needs network)
 npm run build:ext  # bundle the extension to extension/dist (gitignored)
 npm run smoke:ext  # preview the built overlay on real Showdown (SHOTS=<dir> for screenshots)
+npm run pack:ext   # zip the built extension's runtime files (allowlist) into release/
 ```
+
+CI (`.github/workflows/ci.yml`: typecheck, test, both builds, pack) gates every PR and
+the Pages deploy. The store release is tag-driven: bump `extension/manifest.json`
+`version`, tag `ext-vX.Y.Z`, push the tag; `release-ext.yml` checks the tag against the
+manifest, attaches the tested zip to a GitHub Release, and after approval on the
+`chrome-web-store` environment uploads and submits it (`scripts/cws-publish.mjs`, Web
+Store API v2, service account). `npm run smoke:ext` stays a local pre-release check
+(real Showdown + network). The privacy policy the listing links to is `public/privacy.html`.
 
 Load the extension: `chrome://extensions` → Developer mode → Load unpacked →
 `extension/`. After editing `inject.ts`/`content.ts`, `npm run build:ext` then

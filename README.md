@@ -148,7 +148,7 @@ src/
 
 The `extension/` folder is a Chrome (Manifest V3) extension that brings the same
 engine to **live Pokémon Showdown games**. It reads your active battle, shows
-damage both ways in an overlay, and adds an assistant you can ask questions.
+and shows damage both ways in an overlay.
 
 <div align="center">
 <img src="docs/overlay.png" alt="The VGC Live Calc overlay in the pixel theme on Pokémon Showdown: your side and damage on the left, the opponent and their threats on the right, with damage % and KO chances" width="420" />
@@ -166,13 +166,6 @@ damage both ways in an overlay, and adds an assistant you can ask questions.
 - **Same look as the calculator.** The overlay uses the web app's pixel theme
   (fonts bundled in the extension, no network request for them) inside a shadow
   root, so it never restyles Showdown and Showdown never restyles it.
-- **Ask the agent, by voice or text.** A question box (and a mic button) runs a
-  Claude (Haiku 4.5) assistant that answers in a sentence or two, grounded in the
-  real numbers. Speak a question and it talks the answer back; type one and it
-  replies in text. It never does the math itself: for any matchup not already on
-  screen (a bench Pokémon, a Tera, a stat boost, a switch-in) it calls a
-  `run_calc` tool backed by the actual engine. Voice uses the browser's built-in
-  Web Speech APIs.
 
 The extension reuses the app's `src/services/` calc, data, and set-inference
 layer, so it stays in sync with the calculator.
@@ -183,9 +176,20 @@ npm run smoke:ext     # preview the built overlay on the real Showdown page (hea
 ```
 
 Load it from `chrome://extensions` (enable Developer mode, then **Load unpacked**
-and pick the `extension/` folder). For the assistant, open the extension's options
-and paste an Anthropic API key; it is stored locally and only sent to
-api.anthropic.com.
+and pick the `extension/` folder). The store build has a 7-day free trial, then a paid
+unlock through ExtensionPay; the web calculator stays free.
+
+### Releasing
+
+CI runs typecheck, tests, both builds and the extension zip on every PR and push, and
+GitHub Pages only deploys when it passes. To ship a new extension version:
+
+```bash
+npm test && npm run typecheck && npm run build:ext && npm run smoke:ext   # local, needs network
+# bump "version" in extension/manifest.json, commit
+git tag ext-vX.Y.Z && git push && git push --tags
+# approve the chrome-web-store deployment in GitHub Actions, then wait for store review
+```
 
 ## Mega Evolution
 
