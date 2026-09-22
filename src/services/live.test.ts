@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeLive, spreadHitsOne, koShort, type MyPokemon } from './live';
+import { computeLive, spreadHitsOne, koShort, liveBasePower, calcTraits, type MyPokemon } from './live';
 import type { BattleSnapshot, BattleMon } from './battle';
 import type { SetService, SuggestedSet } from './sets';
 import type { ResolvedFormat } from './formats';
@@ -19,7 +19,7 @@ const resolved = { def: getFormat('gen9ou'), stats: { id: 'gen9ou' }, sets: { id
 
 const mon = (o: Partial<BattleMon>): BattleMon => ({
   species: 'X', level: 100, fainted: false, hpPercent: 100, status: '',
-  boosts: {}, terastallized: false, revealedMoves: [], known: false, ...o,
+  boosts: {}, terastallized: false, revealedMoves: [], alliesFainted: 0, timesAttacked: 0, known: false, ...o,
 });
 
 const snapshot: BattleSnapshot = {
@@ -75,6 +75,29 @@ describe('computeLive', () => {
     expect(ep.percent).toEqual([0, 0]);
   });
 
+  it('uses your request item/ability ids and ignores an unused tera type', async () => {
+    const fakeOut = { ...snapshot, theirs: [mon({ species: 'Landorus', revealedMoves: ['Fake Out'] })] };
+    const run = async (item: string) => {
+      const r = await computeLive(fakeOut, [{ ...myPokemon[0], item }], fakeSets, resolved);
+      return {
+        inc: r.incoming.find((l) => l.move === 'Fake Out')!,
+        blitz: r.outgoing.find((l) => l.move === 'Flare Blitz')!,
+      };
+    };
+    const id = await run('choiceband');
+    // Tera Ghost is only in the request, not active: Fake Out still lands.
+    expect(id.inc.kind).toBe('damage');
+    // 'choiceband' boosts exactly like 'Choice Band'.
+    expect(id.blitz.percent).toEqual((await run('Choice Band')).blitz.percent);
+    expect(id.blitz.percent[1]).toBeGreaterThan((await run('')).blitz.percent[1]);
+  });
+
+  it('Last Respects and Rage Fist scale with the battle so far', () => {
+    expect(liveBasePower('Last Respects', { alliesFainted: 2, timesAttacked: 0 })).toBe(150);
+    expect(liveBasePower('ragefist', { alliesFainted: 0, timesAttacked: 9 })).toBe(350);
+    expect(liveBasePower('Flare Blitz', { alliesFainted: 2, timesAttacked: 2 })).toBeUndefined();
+  });
+
   it('finds your moves when the active forme differs from the request species', async () => {
     const tera = { ...snapshot, mine: [mon({ species: 'Ogerpon-Wellspring-Tera', known: true, terastallized: true, teraType: 'Water' })] };
     const me: MyPokemon[] = [
@@ -126,5 +149,19 @@ describe('computeLive', () => {
     const max = async (r: ResolvedFormat) =>
       (await computeLive(snapshot, bash, fakeSets, r)).outgoing.find((l) => l.move === 'Psyshield Bash')!.percent[1];
     expect(await max(champions)).toBeGreaterThan(await max(resolved));
+  });
+
+  it('a Mega calcs with its own ability and without its stone', async () => {
+    expect(calcTraits('Charizard-Mega-Y', 'Blaze', 'Charizardite Y')).toEqual({ ability: 'Drought', item: undefined });
+    expect(calcTraits('Incineroar', 'intimidate', 'safetygoggles')).toEqual({ ability: 'Intimidate', item: 'Safety Goggles' });
+
+    // Opponent megas mid-battle: stone revealed, base-forme set inferred. Used to throw on every move (0%).
+    const champions = { def: getFormat('gen9champions'), stats: { id: null }, sets: { id: null } } as ResolvedFormat;
+    const zardSet = { ...landorusSet, species: 'Charizard', ability: 'Blaze', item: 'Charizardite Y', moves: ['Heat Wave'] } as SuggestedSet;
+    const zard = { ...snapshot, theirs: [mon({ species: 'Charizard-Mega-Y', level: 50, item: 'Charizardite Y', ability: 'Blaze' })] };
+    const meStone = [{ ...myPokemon[0], item: 'charizarditex' }];
+    const r = await computeLive(zard, meStone, { getCommonSet: async () => zardSet }, champions);
+    expect(r.incoming.find((l) => l.move === 'Heat Wave')!.kind).toBe('damage');
+    expect(r.outgoing.find((l) => l.move === 'Flare Blitz')!.kind).toBe('damage');
   });
 });

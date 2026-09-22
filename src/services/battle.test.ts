@@ -24,8 +24,9 @@ const battle = {
     sideConditions: {},
     active: [
       mon({ speciesForme: 'Landorus', hp: 76, maxhp: 100, boosts: { atk: -1 }, moveTrack: [['Sandsear Storm', 1]] }),
-      mon({ speciesForme: 'Ogerpon-Wellspring', gender: 'F', hp: 64, maxhp: 100, boosts: { atk: -1 } }),
+      mon({ speciesForme: 'Ogerpon-Wellspring', gender: 'F', hp: 64, maxhp: 100, boosts: { atk: -1 }, timesAttacked: 2 }),
     ],
+    pokemon: [{ speciesForme: 'Landorus' }, { speciesForme: 'Ogerpon-Wellspring' }, { speciesForme: 'Amoonguss', fainted: true }],
   },
 } as unknown as SdBattle;
 
@@ -59,5 +60,12 @@ describe('mapBattle', () => {
     expect(lando.ability).toBeUndefined();
     expect(lando.boosts).toEqual({ atk: -1 });
     expect(lando.revealedMoves).toEqual(['Sandsear Storm']);
+  });
+
+  it('counts faints per side and hits taken (Last Respects, Rage Fist)', () => {
+    expect(snap.theirs[0]!.alliesFainted).toBe(1);
+    expect(snap.mine[0]!.alliesFainted).toBe(0);
+    expect(snap.theirs[1]!.timesAttacked).toBe(2);
+    expect(mapBattle({ ...battle, mySide: { ...battle.mySide!, faintCounter: 3 } }).mine[0]!.alliesFainted).toBe(3);
   });
 });

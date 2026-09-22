@@ -29,10 +29,12 @@ interface SdPokemon {
   teraType: string;
   terastallized: string;
   moveTrack: [string, number][];
+  timesAttacked?: number;
 }
 interface SdSide {
   active: (SdPokemon | null)[];
-  pokemon?: { speciesForme?: string }[]; // full team (species known from team preview)
+  pokemon?: { speciesForme?: string; fainted?: boolean }[]; // full team (species known from team preview)
+  faintCounter?: number;
   sideConditions?: Record<string, unknown>;
 }
 export interface SdBattle {
@@ -69,6 +71,10 @@ export interface BattleMon {
   item?: string;
   /** Revealed ability; undefined when not yet known. */
   ability?: string;
+  /** Fainted teammates (Last Respects, Supreme Overlord). */
+  alliesFainted: number;
+  /** Hits taken so far (Rage Fist). */
+  timesAttacked: number;
   /** true = full info (your side); false = opponent, fill gaps from usage stats. */
   known: boolean;
 }
@@ -144,7 +150,11 @@ function mapSide(s?: Record<string, unknown> | null): SideConditions {
   };
 }
 
-function mapMon(p: SdPokemon | null, known: boolean): BattleMon | null {
+/** Faints on a side: the client's counter, else the fainted mons it lists. */
+const faintedOn = (s: SdSide | null): number =>
+  s?.faintCounter ?? (s?.pokemon ?? []).filter((p) => p.fainted).length;
+
+function mapMon(p: SdPokemon | null, known: boolean, alliesFainted: number): BattleMon | null {
   if (!p) return null;
   const status = (STATUSES as string[]).includes(p.status) ? (p.status as Status) : '';
   // moveTrack entries can carry a '*' marker (revealed via open team sheet).
@@ -165,6 +175,8 @@ function mapMon(p: SdPokemon | null, known: boolean): BattleMon | null {
     revealedMoves,
     item: p.item || undefined,
     ability: p.ability || undefined,
+    alliesFainted,
+    timesAttacked: p.timesAttacked ?? 0,
     known,
   };
 }
@@ -181,8 +193,8 @@ export function mapBattle(b: SdBattle): BattleSnapshot {
     gen: b.gen,
     tier: b.tier,
     turn: b.turn,
-    mine: (mySide?.active ?? []).map((p) => mapMon(p, true)),
-    theirs: (theirSide?.active ?? []).map((p) => mapMon(p, false)),
+    mine: (mySide?.active ?? []).map((p) => mapMon(p, true, faintedOn(mySide))),
+    theirs: (theirSide?.active ?? []).map((p) => mapMon(p, false, faintedOn(theirSide))),
     myTeam: team(mySide),
     theirTeam: team(theirSide),
     field: {

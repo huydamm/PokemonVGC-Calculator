@@ -9,7 +9,7 @@
  */
 import type { StatsTable } from '@pkmn/data';
 import { createPokemon, createMove, runCalc, buildField, Pokemon } from './calc';
-import { gen } from './data';
+import { gen, isMegaSpecies } from './data';
 import type { SetService } from './sets';
 import type { ResolvedFormat } from './formats';
 import type { Conditions, SideConditions } from './conditions';
@@ -65,6 +65,21 @@ function mergeMoves(revealed: string[], inferred: string[]): string[] {
   return out;
 }
 
+/**
+ * Item and ability as the engine needs them. The request sends ids ('choiceband') and the
+ * engine matches names ('Choice Band'). Items the dex lacks, every Mega Stone included,
+ * are dropped: an unknown held item makes each calc throw (a row of 0%). A Mega has one
+ * ability, and the one revealed or inferred before it evolved is the base forme's.
+ */
+export function calcTraits(species: string, ability?: string, item?: string): { ability?: string; item?: string } {
+  const sp = gen.species.get(species);
+  const mega = sp && isMegaSpecies(sp) ? sp.abilities[0] : undefined;
+  return {
+    ability: mega ?? (ability ? gen.abilities.get(ability)?.name ?? ability : undefined),
+    item: item ? gen.items.get(item)?.name : undefined,
+  };
+}
+
 /** Set current HP from a percent (the only HP figure known for the opponent). */
 function setHPPercent(p: Pokemon, pct: number): void {
   p.originalCurHP = Math.max(1, Math.round((p.maxHP() * pct) / 100));
@@ -80,12 +95,12 @@ async function buildOpponent(
   const moves = mergeMoves(mon.revealedMoves, set.moves);
   const pokemon = createPokemon(mon.species, {
     level: mon.level, // the live battle's level, not the inferred set's (often 50)
-    ability: mon.ability ?? set.ability, // revealed ability wins
-    item: mon.item ?? set.item, // revealed item wins
+    ...calcTraits(mon.species, mon.ability ?? set.ability, mon.item ?? set.item), // revealed wins
     nature: set.nature,
     evs: set.evs,
     teraType: mon.terastallized ? mon.teraType : undefined, // only if actually tera'd
     moves,
+    alliesFainted: mon.alliesFainted,
     boosts: mon.boosts,
     status: mon.status,
   });
@@ -98,10 +113,11 @@ function buildMine(mon: BattleMon, me: MyPokemon | undefined): { pokemon: Pokemo
   const moves = me?.moves?.length ? me.moves : mon.revealedMoves;
   const pokemon = createPokemon(mon.species, {
     level: mon.level,
-    ability: me?.ability ?? mon.ability,
-    item: me?.item ?? mon.item,
-    teraType: mon.terastallized ? mon.teraType : me?.teraType,
+    ...calcTraits(mon.species, me?.ability ?? mon.ability, me?.item ?? mon.item),
+    // A teraType makes the engine treat the mon as terastallized, so only pass it once it is.
+    teraType: mon.terastallized ? mon.teraType : undefined,
     moves,
+    alliesFainted: mon.alliesFainted,
     boosts: mon.boosts,
     status: mon.status,
   });
@@ -151,10 +167,19 @@ export function spreadHitsOne(target: string, board: Board): boolean {
   return false;
 }
 
+/** Base power from battle state the engine doesn't track; undefined leaves the dex value. */
+export function liveBasePower(name: string, mon: Pick<BattleMon, 'alliesFainted' | 'timesAttacked'>): number | undefined {
+  const id = toID(name);
+  if (id === 'lastrespects') return 50 + 50 * mon.alliesFainted;
+  if (id === 'ragefist') return Math.min(350, 50 + 50 * mon.timesAttacked);
+  return undefined;
+}
+
 /** The move as it lands on this board: a spread move into a single target skips the 0.75x. */
-function boardMove(name: string, formatId: string, board: Board): ReturnType<typeof createMove> {
-  const move = createMove(name, formatId);
-  return spreadHitsOne(move.target, board) ? createMove(name, formatId, true) : move;
+function boardMove(name: string, formatId: string, board: Board, attacker: BattleMon): ReturnType<typeof createMove> {
+  const bp = liveBasePower(name, attacker);
+  const move = createMove(name, formatId, false, bp);
+  return spreadHitsOne(move.target, board) ? createMove(name, formatId, true, bp) : move;
 }
 
 // KO chance is computed from the defender's CURRENT HP, so on a chipped target
@@ -176,6 +201,7 @@ type MoveLine = Pick<MatchupLine, 'move' | 'percent' | 'ko' | 'koShort' | 'koCha
 
 /** Every move against one defender, in set order: damaging, status and no-effect moves alike. */
 function moveLines(
+  attackerMon: BattleMon,
   attacker: Pokemon,
   defender: Pokemon,
   moves: string[],
@@ -188,7 +214,7 @@ function moveLines(
     const none: MoveLine = { move: gen.moves.get(name)?.name ?? name, percent: [0, 0], ko: '', koShort: '', kind: 'none' };
     if (!gen.moves.get(name)) return none;
     try {
-      const mv = boardMove(name, formatId, board);
+      const mv = boardMove(name, formatId, board, attackerMon);
       if (mv.category === 'Status') return { ...none, kind: 'status' };
       const r = runCalc(attacker, defender, mv, field, formatId);
       if (r.range[1] <= 0) return none;
@@ -240,7 +266,7 @@ export async function computeLive(
   for (const t of theirs) {
     for (const m of mine) {
       const board = { foes: mine.length, ally: theirs.length > 1 };
-      for (const l of moveLines(t.pokemon, m.pokemon, t.moves, incomingField, resolved.def.id, board, m.mon.hpPercent >= 100)) {
+      for (const l of moveLines(t.mon, t.pokemon, m.pokemon, t.moves, incomingField, resolved.def.id, board, m.mon.hpPercent >= 100)) {
         incoming.push({ attacker: t.mon.species, defender: m.mon.species, estimated: !t.fullyRevealed, ...l });
       }
     }
@@ -248,7 +274,7 @@ export async function computeLive(
   for (const m of mine) {
     for (const t of theirs) {
       const board = { foes: theirs.length, ally: mine.length > 1 };
-      for (const l of moveLines(m.pokemon, t.pokemon, m.moves, outgoingField, resolved.def.id, board, t.mon.hpPercent >= 100)) {
+      for (const l of moveLines(m.mon, m.pokemon, t.pokemon, m.moves, outgoingField, resolved.def.id, board, t.mon.hpPercent >= 100)) {
         outgoing.push({ attacker: m.mon.species, defender: t.mon.species, estimated: !t.fullyRevealed, ...l });
       }
     }

@@ -68,13 +68,15 @@ export function isSpreadMove(move: Move): boolean {
 /**
  * Build a move; in Champions it carries Champions' base power, type and flags.
  * `singleTarget` has a spread move hit only one target (its other target fainted
- * or protected), which drops the Doubles 0.75x spread reduction.
+ * or protected), which drops the Doubles 0.75x spread reduction. `basePower` sets
+ * a battle-state power the engine doesn't track (Last Respects, Rage Fist).
  */
-export function createMove(name: string, formatId?: string, singleTarget = false): Move {
+export function createMove(name: string, formatId?: string, singleTarget = false, basePower?: number): Move {
   const champions = formatId === CHAMPIONS_FORMAT ? championsMoveOverrides(name) : undefined;
   // ponytail: Expanding Force (Psychic Terrain) and Tera Starstorm turn spread inside the engine, so they keep the 0.75x
   const single = singleTarget && SPREAD_TARGETS.has(gen.moves.get(name)?.target ?? '') ? { target: 'normal' } : undefined;
-  const overrides = champions || single ? { ...champions, ...single } : undefined;
+  const bp = basePower ? { basePower } : undefined;
+  const overrides = champions || single || bp ? { ...champions, ...single, ...bp } : undefined;
   return new Move(gen as never, name, overrides ? { overrides: overrides as never } : undefined);
 }
 
