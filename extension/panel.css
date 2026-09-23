@@ -307,38 +307,15 @@
   width: 40%;
 }
 
-/* ---- Plan: trial line and locked prompt ---- */
-.vgc-plan {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+/* ---- Credits ---- */
+.vgc-credits {
+  margin: 10px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.35;
 }
-.vgc-plan .vgc-btn {
-  margin-left: auto;
-}
-.vgc-locked p {
-  margin: 0 0 10px;
-}
-.vgc-locked .vgc-row {
-  display: flex;
-  gap: 8px;
-}
-.vgc-buy {
-  padding: 6px 10px;
-  font-family: var(--font-display);
-  font-size: 8px;
-  text-transform: uppercase;
-  color: var(--ink);
-  background: var(--accent-2);
-  box-shadow: inset var(--px) var(--px) 0 #ffe08a, 2px 2px 0 var(--ink);
-}
-@media (hover: hover) {
-  .vgc-buy:hover {
-    background: #ffd35c;
-  }
+.vgc-credits a {
+  color: var(--accent-2);
 }
 
 @keyframes px-in {

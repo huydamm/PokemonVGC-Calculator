@@ -1,13 +1,10 @@
 {
   "manifest_version": 3,
   "name": "VGC Live Calc",
-  "version": "0.2.0",
-  "description": "Live damage-calc overlay for Pokemon Showdown.",
+  "version": "0.3.0",
+  "description": "Free live damage-calc overlay for Pokemon Showdown. Unofficial fan project.",
   "icons": { "16": "icons/icon-16.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
-  "permissions": ["storage"],
-  "host_permissions": ["https://data.pkmn.cc/*"],
-  "background": { "service_worker": "dist/background.js" },
-  "options_page": "options.html",
+  "host_permissions": ["https://data.pkmn.cc/*", "https://championsbattledata.com/*"],
   "web_accessible_resources": [{ "resources": ["fonts/*"], "matches": ["*://play.pokemonshowdown.com/*"] }],
   "content_scripts": [
     {

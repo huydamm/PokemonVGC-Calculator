@@ -176,8 +176,7 @@ npm run smoke:ext     # preview the built overlay on the real Showdown page (hea
 ```
 
 Load it from `chrome://extensions` (enable Developer mode, then **Load unpacked**
-and pick the `extension/` folder). The store build has a 7-day free trial, then a paid
-unlock through ExtensionPay; the web calculator stays free.
+and pick the `extension/` folder). Both the extension and the web calculator are free.
 
 ### Releasing
 
@@ -254,5 +253,5 @@ Released under the [MIT License](LICENSE).
 ---
 
 <div align="center">
-<sub>Damage mechanics by <a href="https://github.com/smogon/damage-calc">@smogon/calc</a> · dex data by <a href="https://github.com/pkmn/ps">@pkmn</a> · sprites & usage stats from Pokémon Showdown / data.pkmn.cc. Not affiliated with Nintendo, Game Freak, or The Pokémon Company.</sub>
+<sub>Battle data by <a href="https://championsbattledata.com/">Pokémon Champions Battle Data</a> · damage mechanics by <a href="https://github.com/smogon/damage-calc">@smogon/calc</a> · dex data by <a href="https://github.com/pkmn/ps">@pkmn</a> · sprites & usage stats from Pokémon Showdown / data.pkmn.cc. Not affiliated with Nintendo, Game Freak, or The Pokémon Company.</sub>
 </div>

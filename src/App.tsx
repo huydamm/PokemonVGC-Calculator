@@ -691,6 +691,12 @@ export default function App() {
         >
           {(t) => (t === 'calc' ? calcView : t === 'team' ? teamView : fieldView)}
         </Tabs>
+        <footer className="credits muted">
+          Battle data by <a href="https://championsbattledata.com/">Pokémon Champions Battle Data</a>, usage stats by{' '}
+          <a href="https://www.smogon.com/stats/">Smogon</a> via <a href="https://data.pkmn.cc/">pkmn</a>, calc by{' '}
+          <a href="https://github.com/smogon/damage-calc">@smogon/calc</a>, sprites from Pokémon Showdown. Unofficial
+          fan project, not affiliated with Nintendo, Game Freak, or The Pokémon Company.
+        </footer>
       </main>
       {/* The sprite that follows the pointer (or keyboard) while dragging a team member. */}
       <DragOverlay dropAnimation={prefersReducedMotion() ? null : undefined}>

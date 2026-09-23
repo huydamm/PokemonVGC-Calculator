@@ -1,5 +1,5 @@
 /**
- * Pixel theme for extension surfaces (overlay panel, options page): the web app's
+ * Pixel theme for extension surfaces (the overlay panel): the web app's
  * design tokens plus the three pixel fonts bundled in `fonts/`, applied as
  * constructable stylesheets.
  */

@@ -3,22 +3,19 @@
  * MAIN-world script (inject.ts), renders the board immediately, then runs the
  * both-direction damage calc (live.ts) and fills in the numbers when ready.
  *
- * Calc + network live here (not in MAIN) so fetch to data.pkmn.cc uses the
+ * Calc + network live here (not in MAIN) so fetches to data.pkmn.cc and
+ * championsbattledata.com use the
  * extension's host_permissions and bypasses Showdown's page CSP.
  *
  * The panel sits in a shadow root styled with the web app's pixel tokens
  * (theme.ts + panel.css), so Showdown's CSS can't reach in and ours can't leak
  * out. Page strings are rendered as text only (panel.ts).
- *
- * Paid access comes from the background (ExtensionPay), checked once per battle:
- * a trial shows a days-left line, a lapsed trial shows a buy prompt and runs no calc.
  */
 import { computeLive, battleLevel, type MyPokemon, type LiveResult } from '../src/services/live';
 import type { BattleSnapshot } from '../src/services/battle';
 import { setService } from '../src/services/sets';
 import { resolveFormat, liveFormatDef, type ResolvedFormat } from '../src/services/formats';
 import { nextTabIndex } from '../src/services/tabs';
-import { access, type Access, type License } from '../src/services/license';
 import { installFonts, themeSheet } from './theme';
 import { el, renderBoard, type View } from './panel';
 import panelCss from './panel.css';
@@ -56,9 +53,20 @@ const tablist = el('div', 'vgc-tabs', ...tabs);
 tablist.setAttribute('role', 'tablist');
 tablist.setAttribute('aria-label', 'Damage direction');
 tablist.hidden = true; // until the first battle arrives
-const plan = el('div', 'vgc-plan');
-plan.hidden = true;
-const body = el('div', 'vgc-body', plan, tablist, board);
+const link = (href: string, text: string): HTMLAnchorElement => {
+  const a = el('a', '', text);
+  a.href = href;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  return a;
+};
+// Credits the data sources (championsbattledata.com requires it) and disclaims affiliation.
+const credits = el('p', 'vgc-credits',
+  'Battle data by ', link('https://championsbattledata.com/', 'Pokémon Champions Battle Data'),
+  ', usage stats by ', link('https://www.smogon.com/stats/', 'Smogon'), ' via ', link('https://data.pkmn.cc/', 'pkmn'),
+  ', calc by ', link('https://github.com/smogon/damage-calc', '@smogon/calc'),
+  '. Unofficial fan project, not affiliated with Nintendo or The Pokémon Company.');
+const body = el('div', 'vgc-body', tablist, board, credits);
 body.id = 'vgc-body';
 shadow.append(el('div', 'vgc-panel', el('header', 'vgc-head', el('span', 'vgc-title', 'VGC Live Calc'), headChips, toggle), body));
 
@@ -137,95 +145,14 @@ tablist.addEventListener('keydown', (e) => {
 });
 setView('out');
 
-// ---- paid access -------------------------------------------------------------
-let gate: Promise<Access | null> | null = null;
-
-/**
- * Send to the background. After an extension update the old content script is orphaned and
- * `chrome.runtime` throws, so this reports failure instead of throwing.
- */
-function send<T>(message: { type: string }): Promise<T | null> {
-  return new Promise((resolve) => {
-    try {
-      chrome.runtime.sendMessage(message, (resp?: T) => resolve(chrome.runtime.lastError ? null : resp ?? null));
-    } catch {
-      resolve(null);
-    }
-  });
-}
-
-/** The user's access, or null when the background can't be reached (retried on the next snapshot). */
-const checkAccess = async (): Promise<Access | null> => {
-  const l = await send<License>({ type: 'vgc-license' });
-  return l && access(l, Date.now());
-};
-
-const buyButton = (label: string): HTMLButtonElement => {
-  const b = el('button', 'vgc-btn vgc-buy', label);
-  b.type = 'button';
-  b.addEventListener('click', () => void send({ type: 'vgc-pay' }));
-  return b;
-};
-
-function showPlan(a: Access | null): void {
-  plan.hidden = a?.kind !== 'trial';
-  if (a?.kind === 'trial') plan.replaceChildren(el('span', '', `Free trial: ${a.daysLeft} day${a.daysLeft === 1 ? '' : 's'} left`), buyButton('Buy'));
-}
-
-/** A message in place of the board (locked prompt, unreachable background); no calc runs under it. */
-function showGate(content: HTMLElement): void {
-  mount();
-  tablist.hidden = true;
-  headChips.replaceChildren();
-  latestResult = null;
-  board.replaceChildren(content);
-}
-
-function lockedPrompt(): HTMLElement {
-  const note = el('p', 'vgc-quiet');
-  note.setAttribute('aria-live', 'polite');
-  const recheck = el('button', 'vgc-btn vgc-buy', 'I paid');
-  recheck.type = 'button';
-  recheck.addEventListener('click', async () => {
-    recheck.disabled = true;
-    note.textContent = 'Checking…';
-    gate = checkAccess();
-    const a = await gate;
-    note.textContent = a?.kind === 'locked' ? 'No payment found yet. It can take a minute after checkout.' : '';
-    recheck.disabled = false;
-    if (lastSnapshot) void onSnapshot(...lastSnapshot);
-  });
-  return el('div', 'vgc-locked',
-    el('p', '', 'Your free trial has ended.'),
-    el('p', 'vgc-quiet', 'Unlock VGC Live Calc to keep live damage numbers in every battle.'),
-    el('div', 'vgc-row', buyButton('Unlock'), recheck),
-    note);
-}
-
-let lastSnapshot: [BattleSnapshot, MyPokemon[], string] | null = null;
-
 async function onSnapshot(snapshot: BattleSnapshot, myPokemon: MyPokemon[], roomId: string): Promise<void> {
-  lastSnapshot = [snapshot, myPokemon, roomId];
   const room = roomId || snapshot.tier;
   if (room !== battleRoom) {
     battleRoom = room;
     latestResult = null; // a new battle shows a skeleton, never the last battle's numbers
-    gate = checkAccess(); // once per battle, so a purchase or an expired trial shows up by the next one
   }
   // Taken before the await, so a calc from an older snapshot or room can't land after this one.
   const mySeq = ++seq;
-  const a = await (gate ??= checkAccess());
-  if (mySeq !== seq) return; // a newer snapshot took over while the license check ran
-  showPlan(a);
-  if (!a) {
-    gate = null; // not cached: the next snapshot asks again
-    showGate(el('p', 'vgc-quiet', 'VGC Live Calc was updated or restarted. Reload this page to keep calculating.'));
-    return;
-  }
-  if (a.kind === 'locked') {
-    if (!board.querySelector('.vgc-locked')) showGate(lockedPrompt()); // built once, so its buttons keep focus
-    return;
-  }
   render(snapshot, latestResult, true); // board first, instantly; last numbers stay dimmed until the new ones land
   try {
     const resolved = await resolveLiveFormat(snapshot);

@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const FILES = ['manifest.json', 'options.html', 'dist/inject.js', 'dist/content.js', 'dist/background.js', 'dist/options.js', 'fonts', 'icons'];
+const FILES = ['manifest.json', 'dist/inject.js', 'dist/content.js', 'fonts', 'icons'];
 
 const ext = resolve('extension');
 const missing = FILES.filter((f) => !existsSync(resolve(ext, f)));

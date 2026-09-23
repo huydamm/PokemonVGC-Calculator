@@ -130,21 +130,16 @@ against Showdown's own calc.**
   `koShort` tag), so nothing is dropped. Page strings go in as text
   nodes only, never `innerHTML`. Your moves come from the request data, matched
   to the active forme by species with a prefix fallback (Tera/battle formes).
-- `theme.ts` + `panel.css` / `options.css`: the web app's pixel look. Tokens come
+- `theme.ts` + `panel.css`: the web app's pixel look. Tokens come
   from `src/tokens.css` (shared with `app.css`, `:root, :host`), bundled as text
   (esbuild `--loader:.css=text`) into a constructable stylesheet adopted by the
   panel's shadow root, so Showdown's CSS and ours never meet. Fonts ship in
   `extension/fonts` (OFL) under `VGC `-prefixed family names and are declared on
   the document (Chrome ignores `@font-face` inside a shadow root).
-- `background.ts` + `options.ts`: paid access through ExtensionPay's HTTP API,
-  called directly (its `extpay` client library is AGPL; don't add it). Id
-  `EXTPAY_ID`; the per-install API key lives in `chrome.storage.sync` and is only
-  created when checkout or log-in opens. The background answers `vgc-license`
-  (cached in `chrome.storage.local` so payers keep access when ExtensionPay is
-  down; the trial runs from the first check) and opens checkout on `vgc-pay`,
-  log-in on `vgc-login`. `content.ts` checks once per battle room and turns the license into
-  paid / trial (days-left line) / locked (buy prompt, no calc) with `access()` in
-  `src/services/license.ts`. The web app is free and never imports any of this.
+- Free, no accounts, no background worker. The paid ExtensionPay build (commit
+  `4360dd4`) was removed on 2026-09-23 after Smogon/pkmn pushback; the panel footer
+  credits championsbattledata.com (its API rules require it), Smogon/pkmn and
+  `@smogon/calc`. Keep it: the web app footer carries the same credits.
 - `probe.js`: throwaway, paste into the Showdown console to dump the raw
   `battle` object shape.
 
@@ -153,8 +148,8 @@ extension into headless Chrome via CDP `Extensions.loadUnpacked` over
 `--remote-debugging-pipe` (Chrome 137+ ignores `--load-extension`), opens Showdown,
 posts Doubles OU and Champions boards from the page, and fails on missing numbers,
 the last battle's numbers under a new battle, unloaded fonts, blue/purple colours,
-a moved Showdown layout, a broken collapse, animations under reduced motion, or an
-unthemed options page. `content.ts` only accepts messages from its own window.
+a moved Showdown layout, a broken collapse, animations under reduced motion, or
+missing data credits. `content.ts` only accepts messages from its own window.
 Live calcs count spread targets on the board
 (`spreadHitsOne` in `live.ts`).
 

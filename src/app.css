@@ -391,6 +391,11 @@ textarea {
   color: var(--muted);
   font-size: 0.95rem;
 }
+.credits {
+  margin-top: 2rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
 
 /* ---- Banners ---- */
 .errors,
