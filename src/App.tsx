@@ -335,9 +335,23 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formatId]);
 
+  // A paste is read against the format (level, and Stat Points in Champions), so re-read it
+  // on a format switch and refresh team mons already in a slot. Roster ids are stable per paste.
+  useEffect(() => {
+    if (!pasteText) return;
+    const r = parseTeam(pasteText, format).roster;
+    setRoster(r);
+    for (const [slot, cur] of [['attacker', attackerRef.current], ['defender', defenderRef.current]] as const) {
+      const mon = cur?.source === 'team' && r.find((m) => m.id === cur.mon.id);
+      if (mon) setSlot(slot, { ...cur, mon });
+    }
+    // Only re-run on format change (paste and slots are read at that moment).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formatId]);
+
   function loadPaste(text: string) {
     setPasteText(text);
-    const { roster: r, errors: e } = parseTeam(text);
+    const { roster: r, errors: e } = parseTeam(text, format);
     setRoster(r);
     setErrors(e);
     setAttacker(null);

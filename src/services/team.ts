@@ -7,6 +7,7 @@ import type { Data } from '@pkmn/sets';
 import { gen, isMegaSpecies } from './data';
 import { spriteUrl } from './sprites';
 import type { PokemonOptions } from './calc';
+import type { FormatDef } from './formats';
 import legalSpecies from './legal-species.json';
 
 // Exact-to-Showdown legal species pool per format (by species id), precomputed
@@ -217,8 +218,29 @@ export function applyForme(set: PokemonSet, speciesName: string): PokemonSet {
   return { ...set, species: sp.name, ability, item };
 }
 
-/** Parse a Showdown team export into roster cards + per-mon errors. */
-export function parseTeam(text: string): ParseResult {
+const MAX_IVS = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 };
+
+/**
+ * Fit a pasted set to the format. Showdown omits `Level:` at the format's own level
+ * (OU exports have no "Level: 100"), so a missing level is the format's. In Champions,
+ * Showdown's `EVs:` line holds Stat Points (0-32, /66) and IVs don't count, while we
+ * store 1 SP as 8 EVs at max IVs (see formats.ts).
+ */
+export function fitSetToFormat(set: PokemonSet, format: FormatDef): PokemonSet {
+  const out = { ...set, level: set.level || format.level };
+  const sys = format.statSystem;
+  if (sys.unit !== 'SP') return out;
+  const vals = Object.values(set.evs ?? {});
+  // ponytail: a paste within SP limits reads as SP; a real EV spread that small (e.g. only "4 HP") is misread
+  const isSP = vals.every((v) => v <= sys.perStatMax) && vals.reduce((a, b) => a + b, 0) <= sys.totalMax;
+  const evs = isSP
+    ? (Object.fromEntries(Object.entries(set.evs ?? {}).map(([k, v]) => [k, Math.min(252, v * sys.evPerUnit)])) as PokemonSet['evs'])
+    : set.evs;
+  return { ...out, evs, ivs: MAX_IVS };
+}
+
+/** Parse a Showdown team export into roster cards + per-mon errors, fitted to the format when given. */
+export function parseTeam(text: string, format?: FormatDef): ParseResult {
   const trimmed = text.trim();
   if (!trimmed) return { roster: [], errors: [] };
 
@@ -235,7 +257,7 @@ export function parseTeam(text: string): ParseResult {
   const roster: RosterMon[] = [];
   const errors: string[] = [];
   team.team.forEach((set, i) => {
-    const r = toRosterMon(set as PokemonSet, i);
+    const r = toRosterMon(format ? fitSetToFormat(set as PokemonSet, format) : (set as PokemonSet), i);
     if ('error' in r) errors.push(r.error);
     else roster.push(r);
   });

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parseTeam, setToPokemonOptions, searchSpecies } from './team';
 import { createPokemon } from './calc';
 import { legalItems } from './data';
+import { getFormat } from './formats';
 
 describe('searchSpecies format legality filter', () => {
   const has = (list: { name: string }[], name: string) => list.some((e) => e.name === name);
@@ -136,5 +137,25 @@ describe('team paste parsing', () => {
 
   it('returns empty (no throw) for blank input', () => {
     expect(parseTeam('   ')).toEqual({ roster: [], errors: [] });
+  });
+});
+
+describe('parseTeam fits pastes to the format', () => {
+  const stats = (text: string, id: string) => {
+    const set = parseTeam(text, getFormat(id)).roster[0].set;
+    return createPokemon(set.species, setToPokemonOptions(set)).stats;
+  };
+
+  it('a paste without Level: is at the format level', () => {
+    expect(parseTeam('Garchomp\n- Earthquake', getFormat('gen9ou')).roster[0].set.level).toBe(100);
+    expect(parseTeam('Garchomp\nLevel: 50\n- Earthquake', getFormat('gen9ou')).roster[0].set.level).toBe(50);
+  });
+
+  it('Champions EVs are Stat Points, matching Showdown (stat = base + SP + 20)', () => {
+    const sp = 'Garchomp\nEVs: 32 HP / 32 Atk / 2 Spe\nIVs: 0 Atk\nJolly Nature\n- Earthquake';
+    expect(stats(sp, 'gen9champions')).toMatchObject({ hp: 215, atk: 182, spe: 136 });
+    // A classic EV spread is left as EVs.
+    const ev = 'Garchomp\nEVs: 252 HP / 252 Atk / 4 Spe\nJolly Nature\n- Earthquake';
+    expect(stats(ev, 'gen9champions')).toMatchObject({ hp: 215, atk: 182 });
   });
 });
