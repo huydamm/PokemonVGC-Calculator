@@ -28,6 +28,7 @@ const chrome = spawn(
     '--disable-gpu',
     '--no-sandbox',
     '--remote-debugging-pipe',
+    '--window-size=1280,800', // the Web Store screenshot size, so `store-*` shots upload as-is
     '--enable-unsafe-extension-debugging',
     `--user-data-dir=${PROFILE}`,
     'about:blank',
@@ -258,6 +259,7 @@ async function main() {
     if (!String(c.pctFont).includes('VGC VT323')) errors.push(`assertion: damage numbers not in VT323 (${c.pctFont})`);
     if (c.blue.length) errors.push(`assertion: blue/purple colours in the panel: ${c.blue.join(' | ')}`);
     await page.shot(b.name, panel);
+    await page.shot(`store-${b.name}`, { x: 0, y: 0, width: 1280, height: 800 });
 
     // Both opponents here have usage data, so each shows its full four moves.
     const [selected, theirRows] = (await page.run(TAB(1))).split(' ');
