@@ -12,7 +12,7 @@ slot, and the other side fills itself in with the set people *actually* run. Les
 data entry, more time spent reading the rolls that matter, all on the same
 engine that powers the official Showdown calculator.
 
-### [▶ Live demo](https://huydamm.github.io/PokemonVGC-Calculator/)
+### [▶ Live demo](https://vgccalc.app/)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
