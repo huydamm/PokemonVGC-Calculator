@@ -93,6 +93,10 @@ async function main() {
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') {
       errors.push('console.error: ' + m.params.args.map((a) => a.value ?? a.description ?? '').join(' '));
     }
+    // CSP violations only reach the Log domain, not Runtime.
+    if (m.method === 'Log.entryAdded' && m.params.entry.level === 'error' && m.params.entry.source !== 'network') {
+      errors.push('log: ' + m.params.entry.text);
+    }
     if (m.method === 'Runtime.exceptionThrown') {
       const e = m.params.exceptionDetails;
       errors.push('exception: ' + (e.exception?.description ?? e.text));
@@ -100,6 +104,7 @@ async function main() {
   });
 
   await cdp(browserWs, 'Runtime.enable', {}, sessionId);
+  await cdp(browserWs, 'Log.enable', {}, sessionId);
   await cdp(browserWs, 'Page.enable', {}, sessionId);
   // TOUCH=1 emulates a touch screen (pointer: coarse): 44px targets, 16px controls.
   if (process.env.TOUCH) {

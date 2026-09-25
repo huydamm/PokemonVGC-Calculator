@@ -1,3 +1,23 @@
+/* Self-hosted pixel fonts (shared with the extension, OFL in public/fonts/OFL.txt). */
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('../extension/fonts/press-start-2p.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Pixelify Sans';
+  src: url('../extension/fonts/pixelify-sans.woff2') format('woff2');
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'VT323';
+  src: url('../extension/fonts/vt323.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
   /* Dark theme: tell the browser so native controls (scrollbars, select
      popups, spinners) render dark to match. */

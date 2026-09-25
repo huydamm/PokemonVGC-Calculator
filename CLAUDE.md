@@ -187,5 +187,8 @@ refresh the extension card.
 - **No em dashes** in prose, comments, or docs.
 - Commit as `huydamm <huydamm77@gmail.com>`; no author override, **no Claude
   trailer**. The user works directly on `main`.
+- The built web app ships a CSP (`scripts/csp.ts`, injected by `vite.config.ts`, build only). A new
+  fetch or image host goes there too; `npm run smoke` against `vite preview` fails on CSP violations.
+  Fonts are self-hosted from `extension/fonts` (no Google Fonts).
 - Match surrounding code's comment density and idiom. Non-trivial logic leaves
   one runnable check (a `*.test.ts`).
