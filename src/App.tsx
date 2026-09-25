@@ -649,7 +649,7 @@ export default function App() {
     >
       <main className="app">
         <header className="app-head">
-          <h1>Damage Calculator</h1>
+          <h1>VGC Damage Calculator</h1>
           <div className="format-pick">
             <select value={formatId} onChange={(e) => setFormatId(e.target.value)} aria-label="Format">
               {groups.map(([group, fmts]) => (
@@ -694,6 +694,10 @@ export default function App() {
           {(t) => (t === 'calc' ? calcView : t === 'team' ? teamView : fieldView)}
         </Tabs>
         <footer className="credits muted">
+          <p>
+            Free Pokémon damage calculator for VGC, Pokémon Champions, Gen 9 OU and Doubles OU. Paste your Showdown
+            team, drag a Pokémon into a slot, and the opponent auto-fills with the set players actually run.
+          </p>
           Battle data by <a href="https://championsbattledata.com/">Pokémon Champions Battle Data</a>, usage stats by{' '}
           <a href="https://www.smogon.com/stats/">Smogon</a> via <a href="https://data.pkmn.cc/">pkmn</a>, calc by{' '}
           <a href="https://github.com/smogon/damage-calc">@smogon/calc</a>, sprites from Pokémon Showdown. Unofficial

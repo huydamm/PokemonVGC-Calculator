@@ -1113,7 +1113,7 @@ textarea {
 .conditions {
   padding: 1rem;
 }
-.conditions h3 {
+.conditions h2 {
   font-family: var(--font-display);
   font-size: 0.72rem;
   font-weight: 400;
@@ -1127,7 +1127,7 @@ textarea {
   justify-content: space-between;
   margin-bottom: 0.9rem;
 }
-.conditions h4 {
+.conditions h3 {
   font-family: var(--font-display);
   font-size: 0.52rem;
   font-weight: 400;
@@ -1477,7 +1477,7 @@ textarea::-webkit-scrollbar-thumb,
   .moves th,
   .editor-field,
   .spread-stat,
-  .conditions h4,
+  .conditions h3,
   .seg-label {
     font-size: 0.625rem;
   }

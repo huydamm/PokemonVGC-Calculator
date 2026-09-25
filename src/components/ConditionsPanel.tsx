@@ -68,7 +68,7 @@ function PokemonMods({ title, mods, onChange }: { title: string; mods: Mods; onC
     onChange({ ...mods, boosts: { ...mods.boosts, [k]: clamp(v) } });
   return (
     <div className="cond-card">
-      <h4>{title}</h4>
+      <h3>{title}</h3>
       <div className="stages">
         {STAT_STAGE_KEYS.map((k) => {
           const v = mods.boosts[k] ?? 0;
@@ -128,7 +128,7 @@ export function ConditionsPanel({
   return (
     <section className="conditions">
       <div className="cond-header">
-        <h3>Battle conditions</h3>
+        <h2>Battle conditions</h2>
         <button type="button" className="link" onClick={onReset}>
           reset
         </button>
@@ -178,7 +178,7 @@ export function ConditionsPanel({
 
       <div className="cond-sides">
         <div className="cond-card">
-          <h4>Attacker side</h4>
+          <h3>Attacker side</h3>
           {SIDE_FLAGS.map((f) => (
             <Check
               key={f.key}
@@ -189,7 +189,7 @@ export function ConditionsPanel({
           ))}
         </div>
         <div className="cond-card">
-          <h4>Defender side</h4>
+          <h3>Defender side</h3>
           {SIDE_FLAGS.map((f) => (
             <Check
               key={f.key}

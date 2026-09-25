@@ -4,10 +4,52 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#16130f" />
-    <title>Pokémon Damage Calculator</title>
+    <title>VGC Damage Calculator for Pokémon Champions | VGC Calc</title>
+    <meta
+      name="description"
+      content="Free Pokémon damage calculator for VGC, Pokémon Champions and Gen 9 OU. Paste your team and the opponent auto-fills with the set players actually run."
+    />
+    <link rel="canonical" href="https://vgccalc.app/" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/icon-48.png" />
+    <link rel="apple-touch-icon" href="/icon-128.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="VGC Calc" />
+    <meta property="og:url" content="https://vgccalc.app/" />
+    <meta property="og:title" content="VGC Damage Calculator" />
+    <meta
+      property="og:description"
+      content="Free Pokémon damage calculator for VGC, Pokémon Champions and Gen 9 OU. Paste your team and the opponent auto-fills with the set players actually run."
+    />
+    <meta property="og:image" content="https://vgccalc.app/icon-128.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "VGC Calc",
+        "alternateName": "VGC Damage Calculator",
+        "url": "https://vgccalc.app/",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "description": "Free Pokémon damage calculator for VGC, Pokémon Champions and Gen 9 OU. Paste your team and the opponent auto-fills with the set players actually run."
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Crawlers and the first paint see this; React's createRoot replaces it on mount. -->
+    <div id="root">
+      <main class="app">
+        <header class="app-head"><h1>VGC Damage Calculator</h1></header>
+        <p>
+          Free Pokémon damage calculator for VGC, Pokémon Champions, Gen 9 OU and Doubles OU. Paste your Showdown
+          team, drag a Pokémon into a slot, and the opponent auto-fills with the set players actually run.
+        </p>
+        <p class="muted">Loading the calculator…</p>
+        <noscript><p>The calculator needs JavaScript turned on.</p></noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
