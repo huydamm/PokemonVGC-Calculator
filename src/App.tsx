@@ -594,9 +594,11 @@ export default function App() {
           onChange={(e) => loadPaste(e.target.value)}
           placeholder="Paste a Showdown team export…"
           spellCheck={false}
+          aria-invalid={errors.length > 0}
+          aria-describedby={errors.length > 0 ? 'paste-errors' : undefined}
         />
         {errors.length > 0 && (
-          <ul className="errors">
+          <ul className="errors" id="paste-errors">
             {errors.map((er) => (
               <li key={er}>{er}</li>
             ))}
@@ -695,7 +697,8 @@ export default function App() {
           Battle data by <a href="https://championsbattledata.com/">Pokémon Champions Battle Data</a>, usage stats by{' '}
           <a href="https://www.smogon.com/stats/">Smogon</a> via <a href="https://data.pkmn.cc/">pkmn</a>, calc by{' '}
           <a href="https://github.com/smogon/damage-calc">@smogon/calc</a>, sprites from Pokémon Showdown. Unofficial
-          fan project, not affiliated with Nintendo, Game Freak, or The Pokémon Company.
+          fan project, not affiliated with Nintendo, Game Freak, or The Pokémon Company.{' '}
+          <a href="privacy.html">Privacy</a>
         </footer>
       </main>
       {/* The sprite that follows the pointer (or keyboard) while dragging a team member. */}
