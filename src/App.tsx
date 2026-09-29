@@ -702,7 +702,7 @@ export default function App() {
           <a href="https://www.smogon.com/stats/">Smogon</a> via <a href="https://data.pkmn.cc/">pkmn</a>, calc by{' '}
           <a href="https://github.com/smogon/damage-calc">@smogon/calc</a>, sprites from Pokémon Showdown. Unofficial
           fan project, not affiliated with Nintendo, Game Freak, or The Pokémon Company.{' '}
-          <a href="privacy.html">Privacy</a>
+          <a href="https://chromewebstore.google.com/detail/oebpggnidkjacbldjboackpjjajlclai">Chrome extension</a> · <a href="privacy.html">Privacy</a>
         </footer>
       </main>
       {/* The sprite that follows the pointer (or keyboard) while dragging a team member. */}

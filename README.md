@@ -150,6 +150,8 @@ The `extension/` folder is a Chrome (Manifest V3) extension that brings the same
 engine to **live Pokémon Showdown games**. It reads your active battle, shows
 and shows damage both ways in an overlay.
 
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/oebpggnidkjacbldjboackpjjajlclai)** (free).
+
 <div align="center">
 <img src="docs/overlay.png" alt="The VGC Live Calc overlay in the pixel theme on Pokémon Showdown: your side and damage on the left, the opponent and their threats on the right, with damage % and KO chances" width="420" />
 </div>
@@ -175,7 +177,7 @@ npm run build:ext     # bundle the extension into extension/dist
 npm run smoke:ext     # preview the built overlay on the real Showdown page (headless Chrome, SHOTS=<dir> for screenshots)
 ```
 
-Load it from `chrome://extensions` (enable Developer mode, then **Load unpacked**
+To run a local build, load it from `chrome://extensions` (enable Developer mode, then **Load unpacked**
 and pick the `extension/` folder). Both the extension and the web calculator are free.
 
 ### Releasing
