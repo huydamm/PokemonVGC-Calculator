@@ -153,7 +153,9 @@ and shows damage both ways in an overlay.
 **[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/oebpggnidkjacbldjboackpjjajlclai)** (free).
 
 <div align="center">
-<img src="docs/overlay.png" alt="The VGC Live Calc overlay in the pixel theme on Pokémon Showdown: your side and damage on the left, the opponent and their threats on the right, with damage % and KO chances" width="420" />
+<img src="docs/overlay-demo.gif" alt="The VGC Live Calc overlay next to a live Pokémon Champions battle on Showdown: damage numbers fill in each turn, update after a Mega Evolution, and refresh when a Pokémon faints and a new one switches in" width="900" />
+<br /><br />
+<img src="docs/overlay.png" alt="The overlay's Your moves tab in the pixel theme: Golisopod and Sneasler's moves against Mega Staraptor and Incineroar, with damage % ranges and KO labels" width="420" />
 </div>
 
 - **Reads the live board.** Both active Pokémon, HP, boosts, weather, terrain,
