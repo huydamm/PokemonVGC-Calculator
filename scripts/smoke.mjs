@@ -173,6 +173,10 @@ async function main() {
     return false;
   };
 
+  // First VISIBLE match: desktop hides the phone copy of the HP panel (and vice versa).
+  const visible = (sel) => `([...document.querySelectorAll('${sel}')].find((x)=>x.getClientRects().length) ?? null)`;
+  const text = async (sel) => (await run(`${visible(sel)}?.textContent ?? null`)).result.value;
+
   // 1) Team tab: paste a 2-mon Showdown export
   await clickTab('team');
   await sleep(300);
@@ -180,6 +184,38 @@ async function main() {
     `{const t=document.querySelector('#paste'); const set=Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value').set; set.call(t, ${JSON.stringify(SAMPLE_TEAM)}); t.dispatchEvent(new Event('input',{bubbles:true}));}`,
   );
   await waitFor(`document.querySelector('.card-assign button')`);
+  // 1b) Team box: save the paste, reload, load it back from the box (starts from an empty box:
+  // the smoke profile persists between runs).
+  const formatBefore = (await run(`document.querySelector('select[aria-label="Format"]').value`)).result.value;
+  await run(`localStorage.removeItem('vgccalc.box.v1')`);
+  await run(`[...document.querySelectorAll('.box-btn')].find(b=>b.textContent.includes('Save to box'))?.click()`);
+  await sleep(200);
+  await cdp(browserWs, 'Page.reload', {}, sessionId);
+  await waitFor(`document.querySelector('.strip-empty')?.textContent.includes('box')`, 10000);
+  const boxHint = await text('.strip-empty');
+  // Load from a different format: the box team must switch the format back.
+  const other = formatBefore === 'gen9champions' ? 'gen9ou' : 'gen9champions';
+  await run(
+    `{const s=document.querySelector('select[aria-label="Format"]'); const set=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set; set.call(s,'${other}'); s.dispatchEvent(new Event('change',{bubbles:true}));}`,
+  );
+  await sleep(300);
+  await run(`document.querySelector('.strip-empty')?.click()`);
+  await waitFor(`document.querySelector('#team-box .box-load')`, 5000);
+  const boxCards = await count('#team-box .box-load');
+  await run(`document.querySelector('#team-box .box-load')?.click()`);
+  await waitFor(`document.querySelector('.card-assign button')`, 5000);
+  const boxLoaded = {
+    boxHint,
+    boxCards,
+    format: (await run(`document.querySelector('select[aria-label="Format"]').value`)).result.value,
+    paste: (await run(`document.querySelector('#paste').value`)).result.value,
+    tab: (await run(`document.querySelector('[role=tab][aria-selected=true]')?.id`)).result.value,
+  };
+  if (boxCards !== 1) errors.push(`assertion: box has ${boxCards} teams after one save and a reload`);
+  if (!boxHint?.includes('box')) errors.push(`assertion: empty strip did not offer the box (${boxHint})`);
+  if (boxLoaded.paste !== SAMPLE_TEAM) errors.push('assertion: loading from the box did not restore the paste');
+  if (boxLoaded.format !== formatBefore) errors.push(`assertion: box team loaded in ${boxLoaded.format}, saved in ${formatBefore}`);
+  if (boxLoaded.tab !== 'main-tab-calc') errors.push(`assertion: loading a box team left the tab on ${boxLoaded.tab}`);
   // 2) assign the first card as attacker via its ⚔ button (switches to the Calc tab)
   await run(`document.querySelector('.card-assign button')?.click()`);
   await sleep(500);
@@ -242,9 +278,6 @@ async function main() {
     console.log('draining diagnostics:', diag.result.value);
   }
   await sleep(250);
-  // First VISIBLE match: desktop hides the phone copy of the HP panel (and vice versa).
-  const visible = (sel) => `([...document.querySelectorAll('${sel}')].find((x)=>x.getClientRects().length) ?? null)`;
-  const text = async (sel) => (await run(`${visible(sel)}?.textContent ?? null`)).result.value;
   const picked = await text('#main-panel-calc .move-menu .move-btn:nth-child(3) .move-btn-name');
   const featuredBefore = await text('#main-panel-calc .hp-panel .hp-move');
   const tableFeatured = await text('#main-panel-calc .moves .featured-row td');
@@ -306,6 +339,7 @@ async function main() {
         featuredBefore,
         featuredAfter,
         keyFocus,
+        boxCards: boxLoaded.boxCards,
         ...JSON.parse(layout),
       }),
     },

@@ -67,6 +67,7 @@ on single-option fields.
 | `champions-mechanics.ts` | Champions move overrides + Z-A ability stand-ins, applied by `createMove`/`runCalc` when given `gen9champions` |
 | `formats.ts` | format registry + runtime data-source discovery (`resolveFormat`); `liveFormatDef` maps a live Showdown tier to a format (any Champions tier -> `gen9champions`) |
 | `team.ts` | Showdown paste parsing, species/forme helpers |
+| `team-box.ts` | saved teams in localStorage: load/save/delete from the box (`localBox`, `defaultTeamName`, `sharesSpecies`) |
 | `conditions.ts` | battle-conditions + per-Pokémon modifier model |
 | `battle.ts` | **(extension)** live Showdown board → snapshot (`mapBattle`) |
 | `live.ts` | **(extension)** snapshot → both-direction damage (`computeLive`) |
@@ -87,7 +88,7 @@ so state inside Calc survives a trip to Field; sub-tabs mount on demand. Skeleto
 sprite load, and the heatmap's first computation. Team drag uses a `DragOverlay`,
 and touch drags need a press-and-hold so the strip still scrolls. `npm run smoke`
 drives the tabs and fails if results don't render, state resets across tabs,
-arrow-key tab focus breaks, or the page overflows (`WIDTH=400` for phone width).
+arrow-key tab focus breaks, the team box round-trip fails, or the page overflows (`WIDTH=400` for phone width).
 
 Move results are computed once in `services/results.ts` (`computeMoveResults`), and
 the selected move is `App` state shared by `MoveMenu` (top of the attacker slot),

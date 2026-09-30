@@ -87,7 +87,9 @@ label,
 .strip-empty,
 .summary-chip,
 .strip-chip,
-.move-btn {
+.move-btn,
+.box-btn,
+.box-load {
   background: var(--panel-2);
   border: var(--px) solid var(--ink);
   box-shadow: inset var(--px) var(--px) 0 var(--panel-hi), 2px 2px 0 var(--ink);
@@ -105,7 +107,9 @@ label,
   .strip-empty:hover,
   .summary-chip.idle:hover,
   .strip-chip:hover,
-  .move-btn:hover {
+  .move-btn:hover,
+  .box-btn:hover,
+  .box-load:hover {
     background: var(--panel-hi);
   }
   .summary-chip:hover {
@@ -133,13 +137,16 @@ label,
 .strip-empty:active,
 .summary-chip:active,
 .strip-chip:active,
-.move-btn:active {
+.move-btn:active,
+.box-btn:active,
+.box-load:active {
   transform: translate(2px, 2px);
   box-shadow: inset var(--px) var(--px) 0 var(--panel-lo);
 }
 
 /* Inputs */
 textarea,
+.box-save input,
 .picker input,
 .spread-stat input,
 .editor-field select,
@@ -395,6 +402,81 @@ textarea {
   margin-top: 2rem;
   font-size: 0.85rem;
   line-height: 1.4;
+}
+
+/* ---- Team box ---- */
+.team-box {
+  margin-bottom: 1rem;
+}
+.box-list {
+  list-style: none;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  padding: 0 4px 4px 0;
+}
+.box-card {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+.box-load {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  font: inherit;
+}
+.box-card.active .box-load {
+  border-color: var(--accent-2);
+}
+.box-sprites {
+  display: flex;
+  flex-wrap: wrap;
+}
+.box-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.box-meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.box-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.box-save {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+.box-save input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  font: 1.1rem/1.2 var(--font-mono);
+  padding: 0.4rem 0.5rem;
+}
+.box-btn {
+  padding: 0.4rem 0.7rem;
+  font-weight: 600;
+}
+.box-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.box-note:empty {
+  margin: 0;
 }
 
 /* ---- Banners ---- */
@@ -1461,6 +1543,11 @@ textarea::-webkit-scrollbar-thumb,
   }
   .card-assign button {
     min-width: 44px;
+    min-height: 44px;
+  }
+  .box-btn,
+  .box-load,
+  .box-save input {
     min-height: 44px;
   }
   .moves td {

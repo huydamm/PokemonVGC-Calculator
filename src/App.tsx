@@ -50,6 +50,8 @@ import { Skeleton } from './components/Skeleton';
 import { SpriteImg } from './components/SpriteImg';
 import { MoveMenu } from './components/MoveMenu';
 import { HpPanel } from './components/HpPanel';
+import { TeamBox } from './components/TeamBox';
+import { localBox, defaultTeamName, sharesSpecies, MAX_NAME, type BoxTeam } from './services/team-box';
 import { computeMoveResults, resolveFeatured, type MovePick } from './services/results';
 import './app.css';
 
@@ -260,6 +262,12 @@ export default function App() {
   const [discoverError, setDiscoverError] = useState(false);
   const [tab, setTab] = useState<MainTab>('calc');
   const [dragId, setDragId] = useState<string | null>(null);
+  const box = useMemo(() => localBox(), []);
+  const [boxTeams, setBoxTeams] = useState<BoxTeam[]>(() => box.list());
+  // The box team the paste came from, so saving offers Update as well as Save as new.
+  const [activeBoxId, setActiveBoxId] = useState<string | null>(null);
+  const [teamName, setTeamName] = useState('');
+  const [boxNote, setBoxNote] = useState<{ text: string; undo?: BoxTeam } | null>(null);
   // Bumped whenever a slot gets a different Pokémon (not on edits), so a move pick
   // and the hit shake stay tied to the matchup they were made on.
   const [epochs, setEpochs] = useState({ attacker: 0, defender: 0 });
@@ -349,14 +357,71 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formatId]);
 
-  function loadPaste(text: string) {
+  function loadPaste(text: string, fmt = format) {
     setPasteText(text);
-    const { roster: r, errors: e } = parseTeam(text, format);
+    const { roster: r, errors: e } = parseTeam(text, fmt);
     setRoster(r);
     setErrors(e);
     setAttacker(null);
     setDefender(null);
     bump('attacker', 'defender');
+  }
+
+  function saveToBox(asNew: boolean) {
+    try {
+      const t = box.save({ id: asNew ? undefined : activeBoxId ?? undefined, name: teamName, formatId, paste: pasteText });
+      setActiveBoxId(t.id);
+      setTeamName(t.name);
+      setBoxTeams(box.list());
+      setBoxNote({ text: `Saved "${t.name}".` });
+    } catch (e) {
+      setBoxNote({ text: (e as Error).message });
+    }
+  }
+
+  function loadFromBox(t: BoxTeam) {
+    const fmt = getFormat(t.formatId);
+    setFormatId(fmt.id);
+    loadPaste(t.paste, fmt);
+    setActiveBoxId(t.id);
+    setTeamName(t.name);
+    setBoxNote(null);
+    goTab('calc', 'main-tab-calc');
+  }
+
+  function deleteFromBox(t: BoxTeam) {
+    try {
+      box.remove(t.id);
+      if (t.id === activeBoxId) setActiveBoxId(null);
+      setBoxTeams(box.list());
+      setBoxNote({ text: `Deleted "${t.name}".`, undo: t });
+      // The focused card is gone; land on its undo instead of <body>.
+      requestAnimationFrame(() => document.getElementById('box-undo')?.focus());
+    } catch (e) {
+      setBoxNote({ text: (e as Error).message });
+    }
+  }
+
+  function undoDelete(t: BoxTeam) {
+    try {
+      box.save(t);
+      if (t.paste === pasteText.trim()) setActiveBoxId(t.id);
+      setBoxTeams(box.list());
+      setBoxNote(null);
+    } catch (e) {
+      setBoxNote({ text: (e as Error).message });
+    }
+  }
+
+  function copyFromBox(t: BoxTeam) {
+    if (!navigator.clipboard) {
+      setBoxNote({ text: "Couldn't copy: the browser blocked clipboard access." });
+      return;
+    }
+    navigator.clipboard
+      .writeText(t.paste)
+      .then(() => setBoxNote({ text: `Copied "${t.name}". Import it in Showdown's teambuilder.` }))
+      .catch(() => setBoxNote({ text: "Couldn't copy: the browser blocked clipboard access." }));
   }
 
   function assignFromRoster(slot: SlotId, mon: RosterMon) {
@@ -429,6 +494,8 @@ export default function App() {
     [roster, format.megasEnabled],
   );
 
+  const namePlaceholder = useMemo(() => defaultTeamName(pasteText), [pasteText]);
+
   const fieldSummary = useMemo(
     () => activeConditionSummary(conditions, attackerMods, defenderMods, format.gameType === 'Doubles'),
     [conditions, attackerMods, defenderMods, format.gameType],
@@ -481,6 +548,10 @@ export default function App() {
       <div className="roster-strip" aria-label="Your team">
         {roster.length > 0 ? (
           roster.map((mon) => <StripChip key={mon.id} mon={mon} />)
+        ) : boxTeams.length > 0 ? (
+          <button type="button" className="strip-empty" onClick={() => goTab('team', 'team-box')}>
+            + Pick a team from your box
+          </button>
         ) : (
           <button type="button" className="strip-empty" onClick={() => goTab('team', 'paste')}>
             + Paste a team in the Team tab
@@ -585,13 +656,30 @@ export default function App() {
   const teamView = (
     <div className="team-view">
       <section className="paste-col">
+        <TeamBox
+          teams={boxTeams}
+          activeId={activeBoxId}
+          onLoad={loadFromBox}
+          onCopy={copyFromBox}
+          onDelete={deleteFromBox}
+        />
         <label htmlFor="paste" className="section-title">
           Paste your team (Showdown export)
         </label>
         <textarea
           id="paste"
           value={pasteText}
-          onChange={(e) => loadPaste(e.target.value)}
+          onChange={(e) => {
+            loadPaste(e.target.value);
+            setBoxNote(null);
+            // A paste with none of the box team's species is a different team: detach it so
+            // Update can't overwrite the box team (clearing the box counts too).
+            const active = activeBoxId && boxTeams.find((t) => t.id === activeBoxId);
+            if (active && !sharesSpecies(active.paste, e.target.value)) {
+              setActiveBoxId(null);
+              setTeamName('');
+            }
+          }}
           placeholder="Paste a Showdown team export…"
           spellCheck={false}
           aria-invalid={errors.length > 0}
@@ -604,6 +692,45 @@ export default function App() {
             ))}
           </ul>
         )}
+        {pasteText.trim() && (
+          <div className="box-save">
+            <label htmlFor="team-name" className="sr-only">
+              Team name
+            </label>
+            <input
+              id="team-name"
+              value={teamName}
+              maxLength={MAX_NAME}
+              onChange={(e) => setTeamName(e.target.value)}
+              placeholder={namePlaceholder}
+            />
+            {activeBoxId ? (
+              <>
+                <button type="button" className="box-btn" onClick={() => saveToBox(true)}>
+                  Save as new
+                </button>
+                <button type="button" className="box-btn" onClick={() => saveToBox(false)}>
+                  Update
+                </button>
+              </>
+            ) : (
+              <button type="button" className="box-btn" onClick={() => saveToBox(true)}>
+                Save to box
+              </button>
+            )}
+          </div>
+        )}
+        <p className="box-note" role="status">
+          {boxNote?.text}
+          {boxNote?.undo && (
+            <>
+              {' '}
+              <button type="button" id="box-undo" className="link" onClick={() => undoDelete(boxNote.undo!)}>
+                undo
+              </button>
+            </>
+          )}
+        </p>
         {megaRosterCount > 1 && (
           <p className="warn">
             ⚠ {megaRosterCount} Mega Pokémon on this team. Only one Mega Evolution is legal per team.

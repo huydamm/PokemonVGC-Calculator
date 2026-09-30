@@ -138,6 +138,7 @@ src/
 │   ├── team.ts         # Showdown paste parsing, species search, forme helpers
 │   ├── sets.ts         # opponent common-set builder + usage-stat fallback chain
 │   ├── formats.ts      # runtime format/data discovery from data.pkmn.cc
+│   ├── team-box.ts     # saved teams in localStorage: load/save/delete from the box
 │   └── conditions.ts   # battle-conditions + per-Pokémon modifier model
 ├── components/         # RosterCard, OpponentPicker, OpponentEditor,
 │                       #   ConditionsPanel, Results
