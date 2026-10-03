@@ -67,7 +67,9 @@ on single-option fields.
 | `champions-mechanics.ts` | Champions move overrides + Z-A ability stand-ins, applied by `createMove`/`runCalc` when given `gen9champions` |
 | `formats.ts` | format registry + runtime data-source discovery (`resolveFormat`); `liveFormatDef` maps a live Showdown tier to a format (any Champions tier -> `gen9champions`) |
 | `team.ts` | Showdown paste parsing, species/forme helpers |
-| `team-box.ts` | saved teams in localStorage: load/save/delete from the box (`localBox`, `defaultTeamName`, `sharesSpecies`) |
+| `team-box.ts` | saved teams: the `TeamBoxStore` interface, guest `localBox` (localStorage), `prepareTeam` validation, `exportText`, `defaultTeamName`, `sharesSpecies` |
+| `cloud-box.ts` | signed-in `cloudBox` (Supabase `teams` table, same interface) and `mergeLocal` (guest teams move up on sign-in) |
+| `account.ts` | optional Discord/Google sign-in via lazily imported supabase-js (`getClient`, `onSession`, `signIn`, `signOut`, `deleteAccount`); off unless the env vars are set |
 | `conditions.ts` | battle-conditions + per-Pokémon modifier model |
 | `battle.ts` | **(extension)** live Showdown board → snapshot (`mapBattle`) |
 | `live.ts` | **(extension)** snapshot → both-direction damage (`computeLive`) |
@@ -109,6 +111,17 @@ both, compact header, full-width tabs), `(orientation: landscape) and (max-heigh
 `.slot` so editors adapt to the slot's own width on phones and tablets. Hover styles sit
 under `@media (hover: hover)`. `npm run smoke` with `TOUCH=1` fails on any target under
 44px, control under 16px, pixel label under 10px; run it at phone sizes (`WIDTH`/`HEIGHT`).
+
+## Accounts (optional, Supabase)
+
+Signing in only syncs the team box; guests never load supabase-js (lazy chunk, started by a
+"Sign in" click or a stored session / OAuth `?code=`). Schema and RLS live in
+`supabase/migrations/` (apply in the Supabase SQL editor). Config is `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY` in `.env.local` and as GitHub Actions repo variables (`deploy.yml`); unset
+means no Sign in button. The build adds the Supabase origin to the CSP. The anon key is public by
+design, RLS does the enforcing; **never commit or ship the service-role key** (only
+`scripts/rls-check.ts` uses it, from your shell). Run `rls-check` after any migration. The extension
+stays account-free.
 
 ## Live-battle Chrome extension (`extension/`)
 

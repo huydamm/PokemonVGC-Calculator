@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { CSP } from './csp';
+import { CSP, csp } from './csp';
 
 const dir = join(__dirname, '../src/services');
 
@@ -20,5 +20,10 @@ describe('CSP', () => {
   it('keeps scripts same-origin', () => {
     expect(CSP).toMatch(/script-src 'self'(;|$)/);
     expect(CSP).toContain("object-src 'none'");
+  });
+
+  it('adds the Supabase origin only when accounts are configured', () => {
+    expect(CSP).not.toContain('supabase');
+    expect(csp('https://abc.supabase.co/')).toMatch(/connect-src [^;]* https:\/\/abc\.supabase\.co(;|$)/);
   });
 });

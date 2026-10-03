@@ -25,6 +25,7 @@
     "@pkmn/sets": "^5.2.0",
     "@pkmn/smogon": "^0.5.31",
     "@smogon/calc": "^0.11.0",
+    "@supabase/supabase-js": "^2.117.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

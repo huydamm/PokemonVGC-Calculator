@@ -51,7 +51,11 @@ import { SpriteImg } from './components/SpriteImg';
 import { MoveMenu } from './components/MoveMenu';
 import { HpPanel } from './components/HpPanel';
 import { TeamBox } from './components/TeamBox';
-import { localBox, defaultTeamName, sharesSpecies, MAX_NAME, type BoxTeam } from './services/team-box';
+import { localBox, defaultTeamName, exportText, sharesSpecies, MAX_NAME, type BoxTeam, type TeamBoxStore } from './services/team-box';
+import { cloudBox, mergeLocal } from './services/cloud-box';
+import { accountsEnabled, deleteAccount, getClient, onSession, sessionPending, signIn, signOut, type Provider } from './services/account';
+import { AccountMenu } from './components/AccountMenu';
+import type { Session } from '@supabase/supabase-js';
 import { computeMoveResults, resolveFeatured, type MovePick } from './services/results';
 import './app.css';
 
@@ -262,8 +266,12 @@ export default function App() {
   const [discoverError, setDiscoverError] = useState(false);
   const [tab, setTab] = useState<MainTab>('calc');
   const [dragId, setDragId] = useState<string | null>(null);
-  const box = useMemo(() => localBox(), []);
-  const [boxTeams, setBoxTeams] = useState<BoxTeam[]>(() => box.list());
+  const local = useMemo(() => localBox(), []);
+  // Signed in, the box is the synced cloud box; signed out (or before it loads), the local one.
+  const [session, setSession] = useState<Session | null>(null);
+  const [cloud, setCloud] = useState<TeamBoxStore | null>(null);
+  const box = cloud ?? local;
+  const [boxTeams, setBoxTeams] = useState<BoxTeam[]>(() => local.list());
   // The box team the paste came from, so saving offers Update as well as Save as new.
   const [activeBoxId, setActiveBoxId] = useState<string | null>(null);
   const [teamName, setTeamName] = useState('');
@@ -289,6 +297,73 @@ export default function App() {
   function goTab(next: MainTab, focusId: string) {
     setTab(next);
     requestAnimationFrame(() => document.getElementById(focusId)?.focus());
+  }
+
+  // A saved session or an OAuth redirect starts the (lazy) auth client; guests never load it.
+  const [authStarted, setAuthStarted] = useState(() => sessionPending());
+  useEffect(() => {
+    if (!authStarted) return;
+    let off: (() => void) | undefined;
+    let live = true;
+    // ponytail: setState only in here; supabase-js deadlocks if its callback awaits another call.
+    onSession((s) => setSession(s)).then((u) => (live ? (off = u) : u()));
+    return () => {
+      live = false;
+      off?.();
+    };
+  }, [authStarted]);
+
+  const userId = session?.user.id ?? null;
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      if (!userId) {
+        setCloud(null);
+        setBoxTeams(local.list());
+        return;
+      }
+      const c = cloudBox(await getClient(), userId);
+      try {
+        const moved = await mergeLocal(local, c);
+        if (moved) setBoxNote({ text: `Moved ${moved} team${moved > 1 ? 's' : ''} from this browser into your synced box.` });
+      } catch (e) {
+        setBoxNote({ text: (e as Error).message });
+      }
+      const teams = await c.list().catch((e: Error) => (setBoxNote({ text: e.message }), local.list()));
+      if (!live) return;
+      setCloud(c);
+      setBoxTeams(teams);
+    })();
+    return () => {
+      live = false;
+    };
+  }, [userId, local]);
+
+  async function startSignIn(p: Provider) {
+    try {
+      await signIn(p);
+    } catch (e) {
+      setBoxNote({ text: (e as Error).message });
+    }
+  }
+
+  async function endSession(del: boolean) {
+    try {
+      if (del) await deleteAccount();
+      else await signOut();
+      setSession(null);
+      setActiveBoxId(null);
+    } catch (e) {
+      setBoxNote({ text: (e as Error).message });
+    }
+  }
+
+  function exportBox() {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([exportText(boxTeams)], { type: 'text/plain' }));
+    a.download = 'vgc-calc-teams.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   useEffect(() => {
@@ -367,12 +442,12 @@ export default function App() {
     bump('attacker', 'defender');
   }
 
-  function saveToBox(asNew: boolean) {
+  async function saveToBox(asNew: boolean) {
     try {
-      const t = box.save({ id: asNew ? undefined : activeBoxId ?? undefined, name: teamName, formatId, paste: pasteText });
+      const t = await box.save({ id: asNew ? undefined : activeBoxId ?? undefined, name: teamName, formatId, paste: pasteText });
       setActiveBoxId(t.id);
       setTeamName(t.name);
-      setBoxTeams(box.list());
+      setBoxTeams(await box.list());
       setBoxNote({ text: `Saved "${t.name}".` });
     } catch (e) {
       setBoxNote({ text: (e as Error).message });
@@ -389,11 +464,11 @@ export default function App() {
     goTab('calc', 'main-tab-calc');
   }
 
-  function deleteFromBox(t: BoxTeam) {
+  async function deleteFromBox(t: BoxTeam) {
     try {
-      box.remove(t.id);
+      await box.remove(t.id);
       if (t.id === activeBoxId) setActiveBoxId(null);
-      setBoxTeams(box.list());
+      setBoxTeams(await box.list());
       setBoxNote({ text: `Deleted "${t.name}".`, undo: t });
       // The focused card is gone; land on its undo instead of <body>.
       requestAnimationFrame(() => document.getElementById('box-undo')?.focus());
@@ -402,11 +477,11 @@ export default function App() {
     }
   }
 
-  function undoDelete(t: BoxTeam) {
+  async function undoDelete(t: BoxTeam) {
     try {
-      box.save(t);
+      await box.save(t);
       if (t.paste === pasteText.trim()) setActiveBoxId(t.id);
-      setBoxTeams(box.list());
+      setBoxTeams(await box.list());
       setBoxNote(null);
     } catch (e) {
       setBoxNote({ text: (e as Error).message });
@@ -798,6 +873,18 @@ export default function App() {
               )}
             </span>
           </div>
+          {accountsEnabled && (
+            <AccountMenu
+              session={session}
+              onSignIn={(p) => {
+                setAuthStarted(true);
+                startSignIn(p);
+              }}
+              onSignOut={() => endSession(false)}
+              onExport={exportBox}
+              onDelete={() => endSession(true)}
+            />
+          )}
         </header>
 
         {discoverError && (

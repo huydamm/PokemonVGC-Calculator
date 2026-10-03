@@ -479,6 +479,46 @@ textarea {
   margin: 0;
 }
 
+/* Header sign-in / account menu (a native <details>). */
+.account {
+  position: relative;
+}
+.account summary {
+  list-style: none;
+  padding: 0.4rem 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.account summary::-webkit-details-marker {
+  display: none;
+}
+.account-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  display: grid;
+  gap: 0.5rem;
+  width: 15rem;
+  padding: 0.75rem;
+  background: var(--panel);
+  border: var(--px) solid var(--ink);
+  box-shadow: var(--shadow);
+}
+.account-pop p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.account-pop .box-btn {
+  padding: 0.4rem 0.7rem;
+  font-weight: 600;
+}
+.account-pop a {
+  color: var(--accent-2);
+  font-size: 0.95rem;
+}
+
 /* ---- Banners ---- */
 .errors,
 .warn {
@@ -852,10 +892,19 @@ textarea {
   .app-head {
     display: grid;
     /* minmax(0, ...) so the format select's longest option can't widen the page. */
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.4rem;
     padding-bottom: 0.6rem;
     margin-bottom: 0.6rem;
+  }
+  /* Sign in sits beside the title; the format row spans underneath. */
+  .format-pick {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .account {
+    grid-column: 2;
+    grid-row: 1;
   }
   .app-head h1 {
     font-size: 0.9rem;
@@ -1547,8 +1596,13 @@ textarea::-webkit-scrollbar-thumb,
   }
   .box-btn,
   .box-load,
-  .box-save input {
+  .box-save input,
+  .account-pop a {
     min-height: 44px;
+  }
+  .account-pop a {
+    display: inline-flex;
+    align-items: center;
   }
   .moves td {
     padding-block: 0.75rem;

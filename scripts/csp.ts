@@ -2,8 +2,9 @@
  * Content-Security-Policy for the built web app, injected as a <meta> by vite.config.ts.
  * GitHub Pages can't send headers, so frame-ancestors (header-only) is not set.
  * scripts/csp.test.ts fails if a service starts calling a host that isn't listed here.
+ * `supabase` is the VITE_SUPABASE_URL the build was given (accounts), if any.
  */
-export const CSP = [
+export const csp = (supabase?: string) => [
   "default-src 'self'",
   "script-src 'self'",
   // React style={} props (Heatmap cells, item icon sprite offsets).
@@ -12,8 +13,10 @@ export const CSP = [
   "img-src 'self' data: https://play.pokemonshowdown.com",
   "font-src 'self'",
   // data.pkmn.cc 301-redirects to pkmn.github.io, and CSP checks every hop.
-  "connect-src 'self' https://data.pkmn.cc https://pkmn.github.io https://championsbattledata.com",
+  `connect-src 'self' https://data.pkmn.cc https://pkmn.github.io https://championsbattledata.com${supabase ? ` ${new URL(supabase).origin}` : ''}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'none'",
 ].join('; ');
+
+export const CSP = csp();

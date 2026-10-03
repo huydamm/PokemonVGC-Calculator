@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOX_KEY, MAX_PASTE, MAX_TEAMS, defaultTeamName, localBox, sharesSpecies, type BoxTeam } from './team-box';
+import { BOX_KEY, MAX_PASTE, MAX_TEAMS, defaultTeamName, exportText, localBox, sharesSpecies, type BoxTeam } from './team-box';
 
 function memStorage(init: Record<string, string> = {}): Storage {
   const m = new Map(Object.entries(init));
@@ -132,5 +132,14 @@ describe('sharesSpecies', () => {
 describe('defaultTeamName', () => {
   it('falls back for unparseable text', () => {
     expect(defaultTeamName('')).toBe('Untitled team');
+  });
+});
+
+describe('exportText', () => {
+  it('writes a Showdown teambuilder backup', () => {
+    const t = (name: string, formatId: string, paste: string): BoxTeam => ({ id: name, name, formatId, paste, updatedAt: '' });
+    expect(exportText([t('A', 'gen9ou', 'Garchomp'), t('B', 'gen9champions', 'Incineroar')])).toBe(
+      '=== [gen9ou] A ===\n\nGarchomp\n\n=== [gen9champions] B ===\n\nIncineroar\n',
+    );
   });
 });

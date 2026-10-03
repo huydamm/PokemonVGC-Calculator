@@ -34,7 +34,29 @@ const valid = (t: unknown): t is BoxTeam => {
   );
 };
 
-// ponytail: sync localStorage only; phase 2 (cloud sync) wraps these three calls if it happens
+export type BoxInput = { id?: string; name: string; formatId: string; paste: string };
+
+/** Where the box lives: `localBox` (guest) or `cloudBox` (signed in). Callers `await` every call. */
+export interface TeamBoxStore {
+  list(): BoxTeam[] | Promise<BoxTeam[]>;
+  save(t: BoxInput): BoxTeam | Promise<BoxTeam>;
+  remove(id: string): void | Promise<void>;
+}
+
+/** Validates and normalizes a team before either store writes it. Throws a readable Error. */
+export function prepareTeam(t: BoxInput): BoxTeam {
+  const paste = t.paste.trim();
+  if (!paste) throw new Error('Paste a team before saving.');
+  if (paste.length > MAX_PASTE) throw new Error('That team is too long to save (10 KB max).');
+  return {
+    id: t.id ?? crypto.randomUUID(),
+    name: (t.name.trim() || defaultTeamName(paste)).slice(0, MAX_NAME),
+    formatId: t.formatId,
+    paste,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function localBox(storage?: Storage) {
   // Resolved per call: touching `localStorage` itself throws when site data is blocked.
   const store = () => storage ?? globalThis.localStorage;
@@ -57,22 +79,13 @@ export function localBox(storage?: Storage) {
   }
 
   /** Insert, or replace the team with the same id. Newest first. */
-  function save(t: { id?: string; name: string; formatId: string; paste: string }): BoxTeam {
-    const paste = t.paste.trim();
-    if (!paste) throw new Error('Paste a team before saving.');
-    if (paste.length > MAX_PASTE) throw new Error('That team is too long to save (10 KB max).');
+  function save(t: BoxInput): BoxTeam {
+    const next = prepareTeam(t);
     const teams = list();
     const others = teams.filter((x) => x.id !== t.id);
     if (others.length === teams.length && teams.length >= MAX_TEAMS) {
       throw new Error(`Your box is full (${MAX_TEAMS} teams). Delete one first.`);
     }
-    const next: BoxTeam = {
-      id: t.id ?? crypto.randomUUID(),
-      name: (t.name.trim() || defaultTeamName(paste)).slice(0, MAX_NAME),
-      formatId: t.formatId,
-      paste,
-      updatedAt: new Date().toISOString(),
-    };
     write([next, ...others]);
     return next;
   }
@@ -81,7 +94,12 @@ export function localBox(storage?: Storage) {
     write(list().filter((x) => x.id !== id));
   }
 
-  return { list, save, remove };
+  return { list, save, remove } satisfies TeamBoxStore;
+}
+
+/** All teams as one Showdown teambuilder backup (`=== [format] name ===` headers). */
+export function exportText(teams: BoxTeam[]): string {
+  return teams.map((t) => `=== [${t.formatId}] ${t.name} ===\n\n${t.paste}\n`).join('\n');
 }
 
 /** True if two pastes share a species: a paste edit that shares none is a different team. */

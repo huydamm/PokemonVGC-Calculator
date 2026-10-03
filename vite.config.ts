@@ -1,12 +1,13 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import { CSP } from './scripts/csp';
+import { csp } from './scripts/csp';
 
 // esbuild minify + Rollup tree-shaking are on by default in `vite build`.
 // Importing @smogon/calc via its `/dist/adaptable` entry (see services/calc.ts)
 // keeps the engine's large bundled data tables out of the build.
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     {
@@ -16,7 +17,7 @@ export default defineConfig({
       transformIndexHtml: (html) =>
         html.replace(
           '<meta charset="UTF-8" />',
-          `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />` +
+          `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${csp(loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL)}" />` +
             '\n    <meta name="referrer" content="strict-origin-when-cross-origin" />',
         ),
     },
@@ -39,4 +40,4 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'scripts/**/*.test.ts'],
   },
-});
+}));
