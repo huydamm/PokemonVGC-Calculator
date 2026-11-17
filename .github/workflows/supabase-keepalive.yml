@@ -1,10 +1,11 @@
-# Free Supabase projects pause after ~7 days without database activity, which takes the
-# project's DNS down. An anon read of `teams` runs a real query (RLS returns []).
+# Free Supabase projects pause after ~7 days of low database activity, which takes the
+# project's DNS down. A read that RLS answers with [] did not count, so this calls
+# `keepalive()` (supabase/migrations/002_keepalive.sql), a real write, once a day.
 name: Supabase keepalive
 
 on:
   schedule:
-    - cron: '17 9 */3 * *'
+    - cron: '17 9 * * *'
   workflow_dispatch:
 
 permissions: {}
@@ -14,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl --fail-with-body -sS "$URL/rest/v1/teams?select=id&limit=1" -H "apikey: $KEY"
+          curl --fail-with-body -sS -X POST "$URL/rest/v1/rpc/keepalive" -H "apikey: $KEY"
         env:
           URL: ${{ vars.VITE_SUPABASE_URL }}
           KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
