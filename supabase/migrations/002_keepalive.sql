@@ -15,7 +15,7 @@ alter table public.keepalive enable row level security;
 -- Runs as the owner so anon can bump the one row and nothing else.
 create function public.keepalive() returns timestamptz
 language sql security definer set search_path = '' as $$
-  update public.keepalive set pinged_at = now() returning pinged_at;
+  update public.keepalive set pinged_at = now() where id returning pinged_at;
 $$;
 revoke execute on function public.keepalive() from public;
 grant execute on function public.keepalive() to anon;
